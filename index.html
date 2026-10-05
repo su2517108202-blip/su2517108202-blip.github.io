@@ -106,10 +106,10 @@ function card(title, text, extra) {
     + '</article>';
 }
 
-/** 二级卡片：挂在选题下面的小故事（默认收起，点开即读） */
+/** 二级卡片：挂在选题下面的小故事（默认摊开，不用点） */
 function subCard(title, text) {
   const i = reg(text);
-  return '<details class="subcard"><summary>' + (title ? esc(title) + '　' : '') + '点开读</summary>'
+  return '<details class="subcard" open><summary>' + (title ? esc(title) + '　' : '') + '</summary>'
     + '<div class="body">' + body(text) + '</div>'
     + '<div class="subact"><button data-i="' + i + '">复制这篇</button></div></details>';
 }
@@ -132,14 +132,13 @@ function render() {
     .map(function (s, i) { return { s: s, i: i }; })
     .filter(function (e) { return e.s !== storySec; });
   if (tab < 0 || tab >= tabList.length) tab = 0;
-  head.innerHTML = '<div class="daytitle">' + esc(sp.title || day.date) + '</div>'
+  head.innerHTML = '<div class="daytitle">' + esc(sp.title || day.date) + (day.slot ? '　（第 ' + (day.slot + 1) + ' 版）' : '') + '</div>'
     + '<div class="meta">热榜 ' + (day.hotCount || 0) + ' 条　·　' + esc(day.push || '') + '　·　' + esc(day.model || '')
     + (quota.limit > 0 ? '　·　今日额度 ' + quota.used + '/' + quota.limit + (quota.used >= quota.limit ? '（已用完）' : '') : '')
     + '</div>';
   tabsEl.innerHTML = tabList.map(function (e, idx) {
     return '<button data-t="' + idx + '"' + (idx === tab ? ' class="on"' : '') + '>' + esc(e.s.title) + '</button>';
-  }).join('');
-  tabsEl.querySelectorAll('button').forEach(function (b) {
+  }).join('');  tabsEl.querySelectorAll('button').forEach(function (b) {
     b.addEventListener('click', function () {
       tab = Number(b.getAttribute('data-t'));
       render();
@@ -153,7 +152,7 @@ function render() {
     html += '<div class="quote">「' + esc(day.quote) + '」<div class="qact"><button data-i="' + qi + '">复制金句</button></div></div>';
   }
   if (sec && sec.items.length > 0) {
-    const showAll = sec.title.indexOf('热榜') >= 0;
+    const showAll = sec.title.indexOf('热榜') >= 0 || sec.title.indexOf('科普') >= 0;
     const isIdeas = sec.title.indexOf('选题') >= 0;
     const chunk = showAll ? sec.items.length : (isIdeas ? Math.ceil(sec.items.length / 2) : 1);
     const pages = Math.max(1, Math.ceil(sec.items.length / chunk));
@@ -237,7 +236,7 @@ async function load(manual) {
     updateRefreshButton();
     if (manual) { current = 0; tab = 0; secIdx = {}; }
     const picker = document.getElementById('picker');
-    picker.innerHTML = days.map(function (d, i) { return '<option value="' + i + '">' + d.date + '</option>'; }).join('');
+    picker.innerHTML = days.map(function (d, i) { return '<option value="' + i + '">' + d.date + (d.slot ? '　v' + (d.slot + 1) : '') + '</option>'; }).join('');
     picker.value = String(current);
     render();
     document.getElementById('foot').innerHTML = '数据每天自动更新　·　' + esc(location.host + location.pathname);
