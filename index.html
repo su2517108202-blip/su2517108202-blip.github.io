@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>每日灵感 · 短剧选题</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon.svg">
+<meta name="theme-color" content="#111318">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  :root { color-scheme: dark; --bg:#111318; --card:#1a1d24; --fg:#e9edf2; --dim:#98a2b3; --accent:#7ee0c0; --gold:#f7c948; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.7 -apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif; padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+  header { position:sticky; top:0; backdrop-filter:blur(12px); background:rgba(17,19,24,.86); border-bottom:1px solid #23262e; padding:12px 16px; display:flex; align-items:center; gap:10px; z-index:5; }
+  header h1 { font-size:17px; margin:0; flex:1; font-weight:600; }
+  header .dot { width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 10px var(--accent); }
+  main { padding:16px 16px 64px; max-width:820px; margin:0 auto; }
+  .bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  button, select { font:inherit; color:var(--fg); background:#20242c; border:1px solid #2d323c; border-radius:10px; padding:8px 12px; }
+  button:active { transform:scale(.97); }
+  article { background:var(--card); border:1px solid #23262e; border-radius:16px; padding:18px 18px 22px; margin-bottom:16px; }
+  article h1 { font-size:21px; margin:0 0 6px; }
+  article h2 { font-size:17px; margin:22px 0 10px; color:var(--accent); border-left:3px solid var(--accent); padding-left:10px; }
+  article h3 { font-size:16px; margin:18px 0 8px; color:var(--gold); }
+  article blockquote { margin:10px 0; padding:10px 14px; border-left:3px solid #3a4150; background:#15181e; border-radius:0 10px 10px 0; color:#cfd6e0; }
+  article ul { padding-left:20px; margin:8px 0; }
+  article li { margin:4px 0; }
+  article p { margin:10px 0; }
+  article strong { color:#fff; }
+  article sub { color:var(--dim); font-size:12px; }
+  .meta { color:var(--dim); font-size:13px; margin-bottom:10px; }
+  .empty { color:var(--dim); text-align:center; padding:40px 0; }
+  .toast { position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:#20242c; border:1px solid #2d323c; padding:10px 16px; border-radius:999px; opacity:0; transition:opacity .2s; pointer-events:none; }
+  .toast.on { opacity:1; }
+</style>
+</head>
+<body>
+<header><span class="dot"></span><h1>每日灵感 · 短剧选题</h1><button id="refresh">刷新</button></header>
+<main>
+  <div class="bar">
+    <select id="picker"></select>
+    <button id="copy">复制当天全文</button>
+    <button id="top">回今天</button>
+  </div>
+  <div id="content"><div class="empty">正在加载今天的灵感…</div></div>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+const DATA_URL = "./data.json";
+let days = [], current = 0;
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function md(src) {
+  const lines = esc(src).split(/\r?\n/);
+  let out = '', inList = false;
+  const inline = (t) => t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    if (/^###\s+/.test(line)) { if (inList) { out += '</ul>'; inList = false; } out += '<h3>' + inline(line.replace(/^###\s+/, '')) + '</h3>'; continue; }
+    if (/^##\s+/.test(line)) { if (inList) { out += '</ul>'; inList = false; } out += '<h2>' + inline(line.replace(/^##\s+/, '')) + '</h2>'; continue; }
+    if (/^#\s+/.test(line)) { if (inList) { out += '</ul>'; inList = false; } out += '<h1>' + inline(line.replace(/^#\s+/, '')) + '</h1>'; continue; }
+    if (/^&gt;\s?/.test(line)) { if (inList) { out += '</ul>'; inList = false; } out += '<blockquote>' + inline(line.replace(/^&gt;\s?/, '')) + '</blockquote>'; continue; }
+    if (/^-\s+/.test(line)) { if (!inList) { out += '<ul>'; inList = true; } out += '<li>' + inline(line.replace(/^-\s+/, '')) + '</li>'; continue; }
+    if (/^<sub>/.test(line)) { if (inList) { out += '</ul>'; inList = false; } out += line; continue; }
+    if (line === '') { if (inList) { out += '</ul>'; inList = false; } continue; }
+    if (inList) { out += '</ul>'; inList = false; }
+    out += '<p>' + inline(line) + '</p>';
+  }
+  if (inList) out += '</ul>';
+  return out;
+}
+
+function render() {
+  const box = document.getElementById('content');
+  const day = days[current];
+  if (!day) { box.innerHTML = '<div class="empty">还没有生成任何一天。<br>在 DSH 里说一句「跑一次每日灵感」即可。</div>'; return; }
+  const meta = '<div class="meta">' + day.date + '　·　热榜 ' + day.hotCount + ' 条　·　' + (day.push || '') + '</div>';
+  box.innerHTML = '<article>' + md(day.markdown) + meta + '</article>';
+}
+
+document.getElementById('refresh').onclick = () => load(true);
+document.getElementById('top').onclick = () => { current = 0; document.getElementById('picker').value = '0'; render(); window.scrollTo({top:0,behavior:'smooth'}); };
+document.getElementById('copy').onclick = async () => {
+  const day = days[current];
+  if (!day) return;
+  try { await navigator.clipboard.writeText(day.markdown); toast('已复制'); }
+  catch { toast('复制失败，长按选择文本'); }
+};
+document.getElementById('picker').onchange = (e) => { current = Number(e.target.value); render(); };
+function toast(t) { const el = document.getElementById('toast'); el.textContent = t; el.classList.add('on'); setTimeout(() => el.classList.remove('on'), 1400); }
+
+async function load(manual) {
+  try {
+    const res = await fetch(DATA_URL, { cache: 'no-store' });
+    const data = await res.json();
+    days = Array.isArray(data.days) ? data.days : [];
+    const picker = document.getElementById('picker');
+    picker.innerHTML = days.map((d, i) => '<option value="' + i + '">' + d.date + '</option>').join('');
+    if (manual) current = 0;
+    render();
+  } catch (e) {
+    document.getElementById('content').innerHTML = '<div class="empty">读取失败：' + String(e) + '</div>';
+  }
+}
+load(false);
+</script>
+</body>
+</html>
