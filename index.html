@@ -30,6 +30,8 @@
   .tabs button.on { background:#173a31; border-color:#1f5b4a; color:var(--accent); font-weight:700; }
   .quote { background:linear-gradient(135deg,#1c2330,#191d24); border:1px solid #2a3140; border-left:4px solid var(--gold); border-radius:14px; padding:13px 15px; margin:0 0 14px; color:#e8e2cf; font-size:15.5px; }
   .quote .qact { text-align:right; margin-top:4px; }
+  .nextwrap { text-align:center; margin:0 0 14px; }
+  .nextwrap button { padding:10px 24px; border-radius:999px; background:#173a31; border-color:#1f5b4a; color:var(--accent); font-weight:700; font-size:14px; }
   article.card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px 15px 15px; margin:0 0 14px; }
   article.card .head { display:flex; align-items:flex-start; gap:10px; }
   article.card .spacer { flex:1; }
@@ -61,7 +63,7 @@
 <div class="toast" id="toast"></div>
 <script>
 const DATA_URL = "./data.json";
-let days = [], current = 0, tab = 0;
+let days = [], current = 0, tab = 0, secIdx = {};
 const copyPool = [];
 function reg(t) { copyPool.push(t); return copyPool.length - 1; }
 
@@ -122,11 +124,36 @@ function render() {
     const qi = reg(day.quote);
     html += '<div class="quote">「' + esc(day.quote) + '」<div class="qact"><button data-i="' + qi + '">复制金句</button></div></div>';
   }
-  if (sec) for (const item of sec.items) html += card(item.title, item.body);
+  if (sec && sec.items.length > 0) {
+    const showAll = sec.title.indexOf('热榜') >= 0;
+    const chunk = showAll ? sec.items.length : (sec.title.indexOf('选题') >= 0 ? Math.ceil(sec.items.length / 2) : 1);
+    const pages = Math.max(1, Math.ceil(sec.items.length / chunk));
+    if (showAll) {
+      for (const item of sec.items) html += card(item.title, item.body);
+    } else {
+      if (!(tab in secIdx) || secIdx[tab] >= pages) secIdx[tab] = 0;
+      const start = secIdx[tab] * chunk;
+      const slice = sec.items.slice(start, start + chunk);
+      for (const item of slice) html += card(item.title, item.body);
+      if (pages > 1) html += '<div class="nextwrap"><button class="nextBtn" data-sec="' + tab + '">下一条 ↻ ' + (secIdx[tab] + 1) + '/' + pages + '</button></div>';
+    }
+  }
   if (sp.meta && sp.meta.length > 0) html += '<div class="meta" style="margin-top:14px">' + sp.meta.map(esc).join('<br>') + '</div>';
   box.innerHTML = html;
   box.querySelectorAll('button[data-i]').forEach(function (b) {
     b.addEventListener('click', function () { copyText(copyPool[Number(b.getAttribute('data-i'))]); });
+  });
+  box.querySelectorAll('.nextBtn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      const t = Number(b.getAttribute('data-sec'));
+      const s = sp.sections[t];
+      if (!s || s.items.length === 0) return;
+      const c = s.title.indexOf('热榜') >= 0 ? s.items.length : (s.title.indexOf('选题') >= 0 ? Math.ceil(s.items.length / 2) : 1);
+      const p = Math.max(1, Math.ceil(s.items.length / c));
+      secIdx[t] = ((secIdx[t] || 0) + 1) % p;
+      render();
+      window.scrollTo(0, 0);
+    });
   });
 }
 
@@ -151,17 +178,17 @@ function toast(t) { const el = document.getElementById('toast'); el.textContent 
 document.getElementById('refresh').onclick = function () { load(true); };
 document.getElementById('copyAll').onclick = function () { const d = days[current]; if (d) copyText(d.markdown); };
 document.getElementById('top').onclick = function () {
-  current = 0; tab = 0; document.getElementById('picker').value = '0';
+  current = 0; tab = 0; secIdx = {}; document.getElementById('picker').value = '0';
   render(); window.scrollTo({ top: 0, behavior: 'smooth' });
 };
-document.getElementById('picker').onchange = function (e) { current = Number(e.target.value); tab = 0; render(); };
+document.getElementById('picker').onchange = function (e) { current = Number(e.target.value); tab = 0; secIdx = {}; render(); };
 
 async function load(manual) {
   try {
     const res = await fetch(DATA_URL, { cache: 'no-store' });
     const data = await res.json();
     days = Array.isArray(data.days) ? data.days : [];
-    if (manual) { current = 0; tab = 0; }
+    if (manual) { current = 0; tab = 0; secIdx = {}; }
     const picker = document.getElementById('picker');
     picker.innerHTML = days.map(function (d, i) { return '<option value="' + i + '">' + d.date + '</option>'; }).join('');
     picker.value = String(current);
