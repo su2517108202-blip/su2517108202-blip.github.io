@@ -40,7 +40,8 @@
   details.subcard .body { margin-top:8px; }
   details.subcard .body p { margin:8px 0; color:#dde4ec; }
   details.subcard .body blockquote { color:#cfd6e0; }
-  details.subcard .subact { text-align:right; margin-top:4px; }
+  details.subcard .subact { display:flex; gap:8px; justify-content:flex-end; align-items:center; margin-top:6px; }
+  details.subcard .subact button { font-size:12.5px; padding:5px 12px; }
   article.card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px 15px 15px; margin:0 0 14px; }
   article.card .head { display:flex; align-items:flex-start; gap:10px; }
   article.card .spacer { flex:1; }
@@ -106,12 +107,12 @@ function card(title, text, extra) {
     + '</article>';
 }
 
-/** 二级卡片：挂在选题下面的小故事（默认摊开，不用点） */
+/** 二级卡片：挂在选题下面的小故事（默认折叠；底部有「收起」，点卡片外也会自动收回） */
 function subCard(title, text) {
   const i = reg(text);
-  return '<details class="subcard" open><summary>' + (title ? esc(title) + '　' : '') + '</summary>'
+  return '<details class="subcard"><summary>' + (title ? esc(title) + '　' : '') + '点开读</summary>'
     + '<div class="body">' + body(text) + '</div>'
-    + '<div class="subact"><button data-i="' + i + '">复制这篇</button></div></details>';
+    + '<div class="subact"><button class="collapseBtn" type="button">收起 ▲</button><button data-i="' + i + '">复制这篇</button></div></details>';
 }
 
 function render() {
@@ -175,6 +176,17 @@ function render() {
   box.querySelectorAll('button[data-i]').forEach(function (b) {
     b.addEventListener('click', function () { copyText(copyPool[Number(b.getAttribute('data-i'))]); });
   });
+  box.querySelectorAll('.collapseBtn').forEach(function (b) {
+    b.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      const d = b.parentNode;
+      while (d && d.tagName !== 'DETAILS') d = d.parentNode;
+      if (d) {
+        d.open = false;
+        try { d.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { d.scrollIntoView(); }
+      }
+    });
+  });
   box.querySelectorAll('.nextBtn').forEach(function (b) {
     b.addEventListener('click', function () {
       const t = Number(b.getAttribute('data-sec'));
@@ -226,6 +238,13 @@ document.getElementById('top').onclick = function () {
   render(); window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 document.getElementById('picker').onchange = function (e) { current = Number(e.target.value); tab = 0; secIdx = {}; render(); };
+
+// 点卡片外面：自动把展开的故事收回去（省得滚到底或翻回顶部去找关闭）
+document.addEventListener('click', function (ev) {
+  const t = ev.target;
+  const inside = t !== null && t !== undefined && typeof t.closest === 'function' ? t.closest('details.subcard') : null;
+  document.querySelectorAll('details.subcard[open]').forEach(function (d) { if (d !== inside) d.open = false; });
+}, true);
 
 async function load(manual) {
   try {
