@@ -32,6 +32,13 @@
   .quote .qact { text-align:right; margin-top:4px; }
   .nextwrap { text-align:center; margin:0 0 14px; }
   .nextwrap button { padding:10px 24px; border-radius:999px; background:#173a31; border-color:#1f5b4a; color:var(--accent); font-weight:700; font-size:14px; }
+  details.subcard { margin:12px 0 2px; border:1px dashed #33404f; border-left:3px solid var(--accent); border-radius:12px; padding:9px 12px 11px; background:#151a21; }
+  details.subcard summary { cursor:pointer; color:var(--accent); font-size:14.5px; font-weight:600; line-height:1.6; }
+  details.subcard summary::marker { color:var(--accent); }
+  details.subcard .body { margin-top:8px; }
+  details.subcard .body p { margin:8px 0; color:#dde4ec; }
+  details.subcard .body blockquote { color:#cfd6e0; }
+  details.subcard .subact { text-align:right; margin-top:4px; }
   article.card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px 15px 15px; margin:0 0 14px; }
   article.card .head { display:flex; align-items:flex-start; gap:10px; }
   article.card .spacer { flex:1; }
@@ -86,13 +93,22 @@ function body(src) {
   return out.join('');
 }
 
-function card(title, text) {
+function card(title, text, extra) {
   const i = reg(text);
   return '<article class="card"><div class="head">'
     + (title ? '<h3>' + esc(title) + '</h3>' : '<span class="spacer"></span>')
     + '<button data-i="' + i + '">复制</button></div>'
     + '<div class="body">' + body(text) + '</div>'
+    + (extra || '')
     + '</article>';
+}
+
+/** 二级卡片：挂在选题下面的小故事（默认收起，点开即读） */
+function subCard(title, text) {
+  const i = reg(text);
+  return '<details class="subcard"><summary>' + (title ? esc(title) + '　' : '') + '点开读</summary>'
+    + '<div class="body">' + body(text) + '</div>'
+    + '<div class="subact"><button data-i="' + i + '">复制这篇</button></div></details>';
 }
 
 function render() {
@@ -107,11 +123,16 @@ function render() {
     return;
   }
   const sp = day.split || { title: '', sections: [], meta: [] };
-  if (tab < 0 || tab >= sp.sections.length) tab = 0;
+  // 小故事不再单独占一个标签，而是挂到对应选题下面（一二级卡片）
+  const storySec = sp.sections.filter(function (s) { return s.title.indexOf('故事') >= 0; })[0];
+  const tabList = sp.sections
+    .map(function (s, i) { return { s: s, i: i }; })
+    .filter(function (e) { return e.s !== storySec; });
+  if (tab < 0 || tab >= tabList.length) tab = 0;
   head.innerHTML = '<div class="daytitle">' + esc(sp.title || day.date) + '</div>'
     + '<div class="meta">热榜 ' + (day.hotCount || 0) + ' 条　·　' + esc(day.push || '') + '　·　' + esc(day.model || '') + '</div>';
-  tabsEl.innerHTML = sp.sections.map(function (s, i) {
-    return '<button data-t="' + i + '"' + (i === tab ? ' class="on"' : '') + '>' + esc(s.title) + '</button>';
+  tabsEl.innerHTML = tabList.map(function (e, idx) {
+    return '<button data-t="' + idx + '"' + (idx === tab ? ' class="on"' : '') + '>' + esc(e.s.title) + '</button>';
   }).join('');
   tabsEl.querySelectorAll('button').forEach(function (b) {
     b.addEventListener('click', function () {
@@ -120,7 +141,7 @@ function render() {
       window.scrollTo(0, 0);
     });
   });
-  const sec = sp.sections[tab];
+  const sec = tabList[tab] !== undefined ? tabList[tab].s : undefined;
   let html = '';
   if (tab === 0 && day.quote) {
     const qi = reg(day.quote);
@@ -128,7 +149,8 @@ function render() {
   }
   if (sec && sec.items.length > 0) {
     const showAll = sec.title.indexOf('热榜') >= 0;
-    const chunk = showAll ? sec.items.length : (sec.title.indexOf('选题') >= 0 ? Math.ceil(sec.items.length / 2) : 1);
+    const isIdeas = sec.title.indexOf('选题') >= 0;
+    const chunk = showAll ? sec.items.length : (isIdeas ? Math.ceil(sec.items.length / 2) : 1);
     const pages = Math.max(1, Math.ceil(sec.items.length / chunk));
     if (showAll) {
       for (const item of sec.items) html += card(item.title, item.body);
@@ -136,7 +158,11 @@ function render() {
       if (!(tab in secIdx) || secIdx[tab] >= pages) secIdx[tab] = 0;
       const start = secIdx[tab] * chunk;
       const slice = sec.items.slice(start, start + chunk);
-      for (const item of slice) html += card(item.title, item.body);
+      for (let j = 0; j < slice.length; j++) {
+        const item = slice[j];
+        const story = isIdeas && storySec !== undefined ? storySec.items[start + j] : undefined;
+        html += card(item.title, item.body, story !== undefined ? subCard(story.title, story.body) : '');
+      }
       if (pages > 1) html += '<div class="nextwrap"><button class="nextBtn" data-sec="' + tab + '">下一条 ↻ ' + (secIdx[tab] + 1) + '/' + pages + '</button></div>';
     }
   }
@@ -148,7 +174,7 @@ function render() {
   box.querySelectorAll('.nextBtn').forEach(function (b) {
     b.addEventListener('click', function () {
       const t = Number(b.getAttribute('data-sec'));
-      const s = sp.sections[t];
+      const s = tabList[t] !== undefined ? tabList[t].s : undefined;
       if (!s || s.items.length === 0) return;
       const c = s.title.indexOf('热榜') >= 0 ? s.items.length : (s.title.indexOf('选题') >= 0 ? Math.ceil(s.items.length / 2) : 1);
       const p = Math.max(1, Math.ceil(s.items.length / c));
