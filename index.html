@@ -40,6 +40,8 @@
   article.card .body ul { margin:6px 0; padding-left:20px; }
   article.card .body li { margin:4px 0; color:#d7dde6; }
   article.card .body li b, article.card .body p b { color:#fff; }
+  article.card .body a { color:var(--accent); text-decoration:none; border-bottom:1px dotted rgba(126,224,192,.5); }
+  article.card .body a:active { opacity:.7; }
   article.card .body blockquote { margin:8px 0; padding:9px 13px; border-left:3px solid #3a4150; background:var(--card2); border-radius:0 10px 10px 0; color:#cfd6e0; }
   .empty { color:var(--dim); text-align:center; padding:60px 0; line-height:2; }
   .toast { position:fixed; left:50%; bottom:30px; transform:translateX(-50%); background:#0f3d31; color:var(--accent); border:1px solid #1f5b4a; padding:9px 18px; border-radius:999px; opacity:0; transition:opacity .18s; pointer-events:none; z-index:99; font-size:14px; }
@@ -68,7 +70,7 @@ const copyPool = [];
 function reg(t) { copyPool.push(t); return copyPool.length - 1; }
 
 function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function inline(t) { return t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'); }
+function inline(t) { return t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'); }
 function body(src) {
   const out = [];
   let inList = false;
