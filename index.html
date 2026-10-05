@@ -18,6 +18,8 @@
   header .dot { width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 10px var(--accent); }
   button { font:inherit; font-size:13px; color:var(--fg); background:#20242c; border:1px solid #2d323c; border-radius:9px; padding:6px 11px; white-space:nowrap; }
   button:active { transform:scale(.96); }
+  button:disabled { opacity:.45; }
+  button:disabled:active { transform:none; }
   button.primary { background:#173a31; border-color:#1f5b4a; color:var(--accent); font-weight:600; }
   main { padding:12px 14px 70px; max-width:860px; margin:0 auto; }
   .bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0 0 10px; }
@@ -73,6 +75,7 @@
 <script>
 const DATA_URL = "./data.json";
 let days = [], current = 0, tab = 0, secIdx = {};
+let quota = { used: 0, limit: 0 };
 const copyPool = [];
 function reg(t) { copyPool.push(t); return copyPool.length - 1; }
 
@@ -130,7 +133,9 @@ function render() {
     .filter(function (e) { return e.s !== storySec; });
   if (tab < 0 || tab >= tabList.length) tab = 0;
   head.innerHTML = '<div class="daytitle">' + esc(sp.title || day.date) + '</div>'
-    + '<div class="meta">热榜 ' + (day.hotCount || 0) + ' 条　·　' + esc(day.push || '') + '　·　' + esc(day.model || '') + '</div>';
+    + '<div class="meta">热榜 ' + (day.hotCount || 0) + ' 条　·　' + esc(day.push || '') + '　·　' + esc(day.model || '')
+    + (quota.limit > 0 ? '　·　今日额度 ' + quota.used + '/' + quota.limit + (quota.used >= quota.limit ? '（已用完）' : '') : '')
+    + '</div>';
   tabsEl.innerHTML = tabList.map(function (e, idx) {
     return '<button data-t="' + idx + '"' + (idx === tab ? ' class="on"' : '') + '>' + esc(e.s.title) + '</button>';
   }).join('');
@@ -203,6 +208,18 @@ function fallback(t) {
 }
 function toast(t) { const el = document.getElementById('toast'); el.textContent = t; el.classList.add('on'); setTimeout(function () { el.classList.remove('on'); }, 1500); }
 
+/** 今日额度用完 → 把「刷新」置灰，别人点不了（重新打开页面仍能看到最新内容） */
+function updateRefreshButton() {
+  const btn = document.getElementById('refresh');
+  if (!btn) return;
+  const exhausted = quota.limit > 0 && quota.used >= quota.limit;
+  btn.disabled = exhausted;
+  btn.textContent = exhausted ? '额度已用完' : '刷新';
+  btn.title = exhausted
+    ? '今天的出卡额度已用完（' + quota.used + '/' + quota.limit + '）：重新打开页面仍可看到最新内容'
+    : '重新拉取最新内容';
+}
+
 document.getElementById('refresh').onclick = function () { load(true); };
 document.getElementById('copyAll').onclick = function () { const d = days[current]; if (d) copyText(d.markdown); };
 document.getElementById('top').onclick = function () {
@@ -216,6 +233,8 @@ async function load(manual) {
     const res = await fetch(DATA_URL, { cache: 'no-store' });
     const data = await res.json();
     days = Array.isArray(data.days) ? data.days : [];
+    quota = data.quota !== undefined && typeof data.quota.used === 'number' ? data.quota : { used: 0, limit: 0 };
+    updateRefreshButton();
     if (manual) { current = 0; tab = 0; secIdx = {}; }
     const picker = document.getElementById('picker');
     picker.innerHTML = days.map(function (d, i) { return '<option value="' + i + '">' + d.date + '</option>'; }).join('');
