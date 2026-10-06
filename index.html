@@ -310,12 +310,11 @@ function newWallUrl() {
   wallSeed = Math.floor(Date.now() / 1000) % 100000 + Math.floor(Math.random() * 1000);
   const n = String(wallSeed);
   const local = wallpapers.filter(function (w) { return String(w.url).indexOf('wallpapers/') === 0; });
-  if (local.length > 0 && Math.random() < 0.85) {
+  if (local.length > 0 && Math.random() < 0.55) {
     wallUrl = local[Math.floor(Math.random() * local.length)].url;
     return wallUrl;
   }
   wallUrl = WALL_FAST + n;
-  return wallUrl;
 }
 
 /** 下载：摄影源能换同图的 2K 版，其它源就是当前这张 */
