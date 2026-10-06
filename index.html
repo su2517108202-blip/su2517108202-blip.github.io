@@ -146,7 +146,7 @@ function render() {
   }
   const sp = day.split || { title: '', sections: [], meta: [] };
   // 小故事不再单独占一个标签，而是挂到对应选题下面（一二级卡片）
-  const storySec = sp.sections.filter(function (s) { return s.title.indexOf('故事') >= 0; })[0];
+  const storySec = sp.sections.filter(function (s) { return s.title.indexOf('故事') >= 0 || s.title.indexOf('剧本') >= 0; })[0];
   const tabList = sp.sections
     .map(function (s, i) { return { s: s, i: i }; })
     .filter(function (e) { return e.s !== storySec; });
