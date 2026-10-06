@@ -301,49 +301,33 @@ function toast(t) { const el = document.getElementById('toast'); el.textContent 
  *  图源用 Picsum（fastly CDN，手机一定能显示；固定 1440×2560 竖屏 2K，自带跨域头所以能下载）。 */
 let wallSeed = 0;
 let wallUrl = '';
-let wallStyle = 'photo';
-const WALL_STYLES = [
-  { key: 'photo', label: '摄影·快' },
-  { key: 'scenery', label: '风景·国内' },
-  { key: 'anime', label: '插画·国内' },
-  { key: 'hd', label: '2K高清·慢' },
-];
 const WALL_BASE = 'https://picsum.photos/';
 const WALL_HD = WALL_BASE + '1440/2560?random=';
 const WALL_FAST = WALL_BASE + '1080/1920?random=';
 
-/** 抽一张新的：默认走小图（1080×1920，快）；风景/插画走国内源；2K高清才拉大图 */
+/** 抽一张新的：不分风格，每次随机挑一个源（都是手机上快的；2K 大图只在你点下载时才拉） */
 function newWallUrl() {
   wallSeed = Math.floor(Date.now() / 1000) % 100000 + Math.floor(Math.random() * 1000);
   const n = String(wallSeed);
-  if (wallStyle === 'scenery') { wallUrl = 'https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&t=' + n; return wallUrl; }
-  if (wallStyle === 'anime') { wallUrl = 'https://www.loliapi.com/acg/?t=' + n; return wallUrl; }
-  if (wallStyle === 'hd') {
-    const pool = wallpapers.filter(function (w) { return w.style === 'landscape' || w.style === 'anime'; });
-    if (pool.length > 0) { wallUrl = pool[Math.floor(Math.random() * pool.length)].url; return wallUrl; }
-    wallUrl = WALL_HD + n;
-    return wallUrl;
-  }
-  wallUrl = WALL_FAST + n;
+  const roll = Math.random();
+  if (roll < 0.4) wallUrl = WALL_FAST + n;
+  else if (roll < 0.7) wallUrl = 'https://www.loliapi.com/acg/?t=' + n;
+  else wallUrl = 'https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&t=' + n;
   return wallUrl;
 }
 
-/** 下载用的高清地址：摄影风格可以换成同图的 2K 版；其它风格就是当前这张 */
+/** 下载：摄影源能换同图的 2K 版，其它源就是当前这张 */
 function wallDownloadUrl() {
-  if (wallStyle === 'photo') return WALL_HD + String(wallSeed);
+  if (wallUrl.indexOf('picsum.photos/1080/1920') > 0) return wallUrl.replace('1080/1920', '1440/2560');
   return wallUrl;
 }
 
 function wallCard() {
   const url = wallUrl.length > 0 ? wallUrl : newWallUrl();
-  const styleBtns = WALL_STYLES.map(function (s) {
-    return '<button class="wallStyle' + (s.key === wallStyle ? ' on' : '') + '" data-style="' + s.key + '" type="button">' + s.label + '</button>';
-  }).join('');
-  return '<article class="card wall"><div class="head"><h3>今日壁纸 · 2K 竖屏</h3>'
+  return '<article class="card wall"><div class="head"><h3>今日壁纸</h3>'
     + '<button id="wallNext" type="button">换一张 ↻</button>'
     + '<button id="wallDl" class="primary" type="button">下载</button></div>'
     + '<div class="body">'
-    + '<div class="wallstyles">' + styleBtns + '</div>'
     + '<div class="wallbox" id="wallBox"><span class="wallhint" id="wallHint">正在抽…</span>'
     + '<img id="wallImg" alt="今日壁纸" src="' + url + '"></div>'
     + '<div class="wallnote">失去了就不要再找了，往前看</div>'
@@ -389,19 +373,11 @@ function bindWall() {
       newWallUrl();
       const cur = document.getElementById('wallImg');
       const h = document.getElementById('wallHint');
-      if (h !== null) { h.style.display = ''; h.textContent = '正在抽…（国外大图会慢，切「国内」风格更快）'; }
+      if (h !== null) { h.style.display = ''; h.textContent = '正在抽…'; }
       if (cur !== null) cur.src = wallUrl + '&t=' + String(Date.now());
       toast('换了一张，上一张找不回来了');
     });
   }
-  document.querySelectorAll('.wallStyle').forEach(function (b) {
-    b.addEventListener('click', function () {
-      wallStyle = b.getAttribute('data-style') || 'photo';
-      newWallUrl();
-      render();
-      toast('已切到' + b.textContent + '，换一张看看');
-    });
-  });
   const dl = document.getElementById('wallDl');
   if (dl !== null) {
     dl.addEventListener('click', function () { void downloadWall(); });
