@@ -141,7 +141,7 @@ function card(title, text, extra, key) {
 function subCard(title, text, key) {
   const i = reg(text);
   const like = key !== undefined && key !== null ? '<button class="likeBtn" data-k="' + key + '" title="点赞（跨设备统计）">♥ <span>0</span></button>' : '';
-  return '<details class="subcard"><summary>' + (title ? esc(title) + '　' : '') + '点开读</summary>'
+  return '<details class="subcard"' + (key !== undefined && key !== null ? ' data-k="' + key + '"' : '') + '><summary>' + (title ? esc(title) + '　' : '') + '点开读</summary>'
     + '<div class="body">' + body(text) + '</div>'
     + '<div class="subact">' + like + '<button class="collapseBtn" type="button">收起 ▲</button><button data-i="' + i + '">复制这篇</button></div></details>';
 }
@@ -175,6 +175,8 @@ function render() {
     });
   });
   const sec = tabList[tab] !== undefined ? tabList[tab].s : undefined;
+  // 重渲染前记住哪些剧本是展开的，渲染后恢复（自动更新时不打断阅读）
+  const openKeys = Array.prototype.map.call(document.querySelectorAll('details.subcard[open][data-k]'), function (d) { return d.getAttribute('data-k'); });
   let html = '';
   if (tab === 0 && day.quote) {
     const qi = reg(day.quote);
@@ -218,6 +220,10 @@ function render() {
     });
   });
   paintLikes();
+  openKeys.forEach(function (k) {
+    const d = document.querySelector('details.subcard[data-k="' + k + '"]');
+    if (d !== null) d.open = true;
+  });
   box.querySelectorAll('.collapseBtn').forEach(function (b) {
     b.addEventListener('click', function (ev) {
       ev.stopPropagation();
@@ -416,6 +422,11 @@ async function load(manual) {
   }
 }
 load(false);
+
+// 自动更新：每 3 分钟拉一次最新数据；切回页面/重新聚焦时立刻拉一次（保持当前选中的日期和标签）
+setInterval(function () { if (document.hidden !== true) load(false); }, 180000);
+document.addEventListener('visibilitychange', function () { if (document.hidden !== true) load(false); });
+window.addEventListener('focus', function () { load(false); });
 </script>
 </body>
 </html>
