@@ -303,19 +303,34 @@ let wallSeed = 0;
 let wallUrl = '';
 let wallStyle = 'photo';
 const WALL_STYLES = [
-  { key: 'photo', label: '摄影' },
-  { key: 'landscape', label: '风景' },
-  { key: 'anime', label: '插画' },
+  { key: 'photo', label: '摄影·快' },
+  { key: 'scenery', label: '风景·国内' },
+  { key: 'anime', label: '插画·国内' },
+  { key: 'hd', label: '2K高清·慢' },
 ];
-const WALL_BASE = 'https://picsum.photos/1440/2560?random=';
+const WALL_BASE = 'https://picsum.photos/';
+const WALL_HD = WALL_BASE + '1440/2560?random=';
+const WALL_FAST = WALL_BASE + '1080/1920?random=';
 
-/** 抽一张新的。摄影走 Picsum（永远抽得到）；风景/插画从电脑抓的池子里随机挑 */
+/** 抽一张新的：默认走小图（1080×1920，快）；风景/插画走国内源；2K高清才拉大图 */
 function newWallUrl() {
   wallSeed = Math.floor(Date.now() / 1000) % 100000 + Math.floor(Math.random() * 1000);
-  if (wallStyle === 'photo') { wallUrl = WALL_BASE + String(wallSeed); return wallUrl; }
-  const pool = wallpapers.filter(function (w) { return w.style === wallStyle; });
-  if (pool.length === 0) { wallUrl = WALL_BASE + String(wallSeed); return wallUrl; }
-  wallUrl = pool[Math.floor(Math.random() * pool.length)].url;
+  const n = String(wallSeed);
+  if (wallStyle === 'scenery') { wallUrl = 'https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&t=' + n; return wallUrl; }
+  if (wallStyle === 'anime') { wallUrl = 'https://www.loliapi.com/acg/?t=' + n; return wallUrl; }
+  if (wallStyle === 'hd') {
+    const pool = wallpapers.filter(function (w) { return w.style === 'landscape' || w.style === 'anime'; });
+    if (pool.length > 0) { wallUrl = pool[Math.floor(Math.random() * pool.length)].url; return wallUrl; }
+    wallUrl = WALL_HD + n;
+    return wallUrl;
+  }
+  wallUrl = WALL_FAST + n;
+  return wallUrl;
+}
+
+/** 下载用的高清地址：摄影风格可以换成同图的 2K 版；其它风格就是当前这张 */
+function wallDownloadUrl() {
+  if (wallStyle === 'photo') return WALL_HD + String(wallSeed);
   return wallUrl;
 }
 
@@ -374,7 +389,7 @@ function bindWall() {
       newWallUrl();
       const cur = document.getElementById('wallImg');
       const h = document.getElementById('wallHint');
-      if (h !== null) { h.style.display = ''; h.textContent = '正在抽…'; }
+      if (h !== null) { h.style.display = ''; h.textContent = '正在抽…（国外大图会慢，切「国内」风格更快）'; }
       if (cur !== null) cur.src = wallUrl + '&t=' + String(Date.now());
       toast('换了一张，上一张找不回来了');
     });
@@ -397,7 +412,8 @@ async function downloadWall() {
   if (wallUrl.length === 0) return;
   toast('正在准备下载…');
   try {
-    const res = await fetch(wallUrl, { cache: 'no-store' });
+    const dlUrl = wallDownloadUrl();
+    const res = await fetch(dlUrl, { cache: 'no-store' });
     if (!res.ok) throw new Error('bad status');
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
@@ -410,7 +426,7 @@ async function downloadWall() {
     setTimeout(function () { URL.revokeObjectURL(url); }, 8000);
     toast('已开始下载');
   } catch (e) {
-    window.open(wallUrl, '_blank');
+    window.open(wallDownloadUrl(), '_blank');
     toast('已打开原图，长按保存即可');
   }
 }
