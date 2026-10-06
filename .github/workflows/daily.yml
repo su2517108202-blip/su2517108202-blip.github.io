@@ -1,0 +1,55 @@
+name: daily-card
+
+# 云端每天出卡（08:00 北京时间 = 00:00 UTC）：不需要你的电脑开着。
+# 如果当天已经有卡（比如电脑那侧先出了），会自动跳过，不重复生成、不重复花钱。
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: '今天已有卡也强制重出'
+        type: boolean
+        default: false
+      dry_run:
+        description: '只生成不写入（试跑）'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-card
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 生成今日卡
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DAILY_MODEL: deepseek-chat
+          SITE_URL: https://www.ss0100.com/
+        run: |
+          ARGS=""
+          if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          node engine/run-daily.mjs $ARGS
+      - name: 提交
+        run: |
+          git config user.name "daily-bot"
+          git config user.email "daily-bot@users.noreply.github.com"
+          git add data.json wallpapers
+          if git diff --cached --quiet; then
+            echo "没有变化，不提交"
+          else
+            git commit -m "daily: 云端出卡 $(date -u +%F)"
+            git pull --rebase --autostash
+            git push
+          fi

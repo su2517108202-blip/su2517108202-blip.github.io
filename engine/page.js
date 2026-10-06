@@ -1,0 +1,777 @@
+export const ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+<rect width="192" height="192" rx="42" fill="#111318"/>
+<path d="M50 58h92M50 88h92M50 118h60" stroke="#7ee0c0" stroke-width="12" stroke-linecap="round"/>
+<circle cx="140" cy="132" r="20" fill="#f7c948"/>
+</svg>`;
+export function manifestJson(pagePath) {
+    return JSON.stringify({
+        name: '散帅灵感库 · 短剧选题',
+        short_name: '散帅灵感库',
+        start_url: pagePath,
+        scope: pagePath,
+        display: 'standalone',
+        background_color: '#111318',
+        theme_color: '#111318',
+        icons: [{ src: `${pagePath}/icon.svg`, sizes: '192x192', type: 'image/svg+xml', purpose: 'any' }],
+    }, null, 2);
+}
+/** 把一张卡的 Markdown 拆成结构化的「一篇一篇」，页面按分区标签渲染、按篇复制 */
+export function splitCard(markdown) {
+    const lines = markdown.split(/\r?\n/);
+    let title = '';
+    const meta = [];
+    const sections = [];
+    let cur;
+    let item;
+    const flushItem = () => {
+        if (cur !== undefined && item !== undefined) {
+            item.body = item.body.trim();
+            if (item.title.length > 0 || item.body.length > 0)
+                cur.items.push(item);
+        }
+        item = undefined;
+    };
+    for (const raw of lines) {
+        const line = raw.trimEnd();
+        if (/^#\s+/.test(line) && title.length === 0) {
+            title = line.replace(/^#\s+/, '');
+            continue;
+        }
+        if (/^##\s+/.test(line)) {
+            flushItem();
+            const heading = line.replace(/^##\s+/, '');
+            const last = sections[sections.length - 1];
+            if (last !== undefined && last.title === heading) {
+                // 同名分区并进上一段（故事分两次生成时会各带一个「## 小故事」标题）
+                cur = last;
+            }
+            else {
+                cur = { title: heading, collapsed: /热榜|原料/.test(heading), items: [] };
+                sections.push(cur);
+            }
+            continue;
+        }
+        if (/^###\s+/.test(line)) {
+            flushItem();
+            item = { title: line.replace(/^###\s+/, ''), body: '' };
+            continue;
+        }
+        if (/^<sub>/.test(line)) {
+            meta.push(line.replace(/^<sub>/, '').replace(/<\/sub>$/, ''));
+            continue;
+        }
+        if (cur === undefined)
+            continue;
+        if (item === undefined)
+            item = { title: '', body: '' };
+        item.body = item.body.length > 0 ? `${item.body}\n${line}` : line;
+    }
+    flushItem();
+    return { title, sections, meta };
+}
+export function dataJson(days, pagePath, quota, wallpapers) {
+    const payload = {
+        updatedAt: new Date().toISOString(),
+        pagePath,
+        quota: quota ?? { used: 0, limit: 0 },
+        wallpapers: wallpapers ?? [],
+        days: days.map((day) => ({ ...day, split: splitCard(day.markdown) })),
+    };
+    return JSON.stringify(payload);
+}
+export function pageHtml(pagePath) {
+    return `<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>散帅灵感库 · 短剧选题</title>
+<link rel="manifest" href="${pagePath}/manifest.webmanifest">
+<link rel="apple-touch-icon" href="${pagePath}/icon.svg">
+<meta name="theme-color" content="#111318">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  :root { color-scheme: dark; --bg:#111318; --card:#1a1d24; --card2:#15181e; --fg:#e9edf2; --dim:#98a2b3; --line:#262b34; --accent:#7ee0c0; --gold:#f7c948; }
+  :root[data-theme="light"] { color-scheme: light; --bg:#f4f6f8; --card:#ffffff; --card2:#f0f3f7; --fg:#1a1e26; --dim:#5d6775; --line:#e1e5ec; --accent:#0d8f6c; --gold:#a9780a; }
+  :root[data-theme="light"] header { background:rgba(244,246,248,.92); }
+  :root[data-theme="light"] button { background:#ffffff; border-color:#d7dde6; color:#1a1e26; }
+  :root[data-theme="light"] button.primary { background:#e6f6f1; border-color:#b3e2d3; color:#0d8f6c; }
+  :root[data-theme="light"] .tabs button { background:#ffffff; border-color:#dde2ea; color:var(--dim); }
+  :root[data-theme="light"] .tabs button.on { background:#e6f6f1; border-color:#b3e2d3; color:var(--accent); }
+  :root[data-theme="light"] .bar select { background:#ffffff; border-color:#dde2ea; color:#1a1e26; }
+  :root[data-theme="light"] article.card h3 { color:#0f1319; }
+  :root[data-theme="light"] article.card .body p, :root[data-theme="light"] article.card .body li { color:#252b35; }
+  :root[data-theme="light"] article.card .body p b, :root[data-theme="light"] article.card .body li b { color:#000000; }
+  :root[data-theme="light"] article.card .body blockquote { background:#f2f4f7; border-left-color:#c7d0dc; color:#39414d; }
+  :root[data-theme="light"] article.card .body a { border-bottom-color:rgba(13,143,108,.45); }
+  :root[data-theme="light"] .quote { background:linear-gradient(135deg,#fffdf6,#fdf4e4); border-color:#eadfc4; color:#5b4a21; }
+  :root[data-theme="light"] details.subcard { background:#fafbfc; border-color:#dbe1e9; }
+  :root[data-theme="light"] details.subcard .body p { color:#252b35; }
+  :root[data-theme="light"] details.subcard .body blockquote { color:#39414d; }
+  :root[data-theme="light"] .toast { background:#e6f6f1; border-color:#b3e2d3; color:#0d8f6c; }
+  :root[data-theme="light"] .nextwrap button { background:#e6f6f1; border-color:#b3e2d3; color:#0d8f6c; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.75 -apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif; padding:0 0 env(safe-area-inset-bottom); }
+  header { position:sticky; top:0; z-index:9; height:calc(52px + env(safe-area-inset-top)); padding:env(safe-area-inset-top) 14px 0; backdrop-filter:blur(12px); background:rgba(17,19,24,.9); border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px; }
+  header h1 { font-size:17px; margin:0; flex:1; font-weight:700; letter-spacing:.5px; }
+  header .dot { width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 10px var(--accent); }
+  button { font:inherit; font-size:13px; color:var(--fg); background:#20242c; border:1px solid #2d323c; border-radius:9px; padding:6px 11px; white-space:nowrap; }
+  button:active { transform:scale(.96); }
+  button:disabled { opacity:.45; }
+  button:disabled:active { transform:none; }
+  button.primary { background:#173a31; border-color:#1f5b4a; color:var(--accent); font-weight:600; }
+  main { padding:12px 14px 70px; max-width:860px; margin:0 auto; }
+  .bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0 0 10px; }
+  .bar select { flex:1; min-width:130px; font:inherit; font-size:14px; color:var(--fg); background:#20242c; border:1px solid #2d323c; border-radius:9px; padding:8px 10px; }
+  .daytitle { font-size:22px; font-weight:800; margin:2px 0 2px; }
+  .meta { color:var(--dim); font-size:12.5px; margin:0; }
+  .tabs { position:sticky; top:calc(52px + env(safe-area-inset-top)); z-index:8; display:flex; flex-wrap:wrap; gap:7px; padding:10px 0 12px; margin:0 0 6px; background:linear-gradient(var(--bg) 78%, transparent); }
+  .tabs::-webkit-scrollbar { display:none; }
+  .tabs button { flex:0 0 auto; border-radius:999px; padding:7px 15px; font-size:13.5px; color:var(--dim); background:#1a1d24; border:1px solid #262b34; }
+  .tabs button.on { background:#173a31; border-color:#1f5b4a; color:var(--accent); font-weight:700; }
+  .quote { background:linear-gradient(135deg,#1c2330,#191d24); border:1px solid #2a3140; border-left:4px solid var(--gold); border-radius:14px; padding:13px 15px; margin:0 0 14px; color:#e8e2cf; font-size:15.5px; }
+  .quote .qact { text-align:right; margin-top:4px; }
+  article.card.wall .wallbox { position:relative; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--card2); aspect-ratio:9/16; max-height:68vh; margin:0 auto; cursor:zoom-in; display:flex; align-items:center; justify-content:center; }
+  article.card.wall .wallbox img { width:100%; height:100%; object-fit:cover; display:block; }
+  article.card.wall .wallstyles { display:flex; gap:6px; margin-bottom:10px; justify-content:center; }
+  article.card.wall .wallstyles button { padding:5px 14px; font-size:12.5px; border-radius:999px; }
+  article.card.wall .wallstyles button.on { background:#173a31; border-color:#1f5b4a; color:var(--accent); }
+  article.card.wall .wallnote { margin-top:10px; text-align:center; color:var(--dim); font-size:13.5px; letter-spacing:.6px; }
+  article.card.wall .wallhint { position:absolute; color:var(--dim); font-size:13px; }
+  #wallFull { position:fixed; inset:0; background:rgba(0,0,0,.95); display:none; z-index:60; align-items:center; justify-content:center; }
+  #wallFull.on { display:flex; }
+  #wallFull img { max-width:100%; max-height:100%; object-fit:contain; }
+  #wallFull .close { position:absolute; top:14px; right:14px; background:rgba(255,255,255,.16); color:#fff; }
+  #wallFull .tip { position:absolute; bottom:16px; left:0; right:0; text-align:center; color:#c8d0da; font-size:12.5px; }
+  .nextwrap { text-align:center; margin:0 0 14px; }
+  .nextwrap button { padding:10px 24px; border-radius:999px; background:#173a31; border-color:#1f5b4a; color:var(--accent); font-weight:700; font-size:14px; }
+  details.subcard { margin:12px 0 2px; border:1px dashed #33404f; border-left:3px solid var(--accent); border-radius:12px; padding:9px 12px 11px; background:#151a21; }
+  details.subcard summary { cursor:pointer; color:var(--accent); font-size:14.5px; font-weight:600; line-height:1.6; }
+  details.subcard summary::marker { color:var(--accent); }
+  details.subcard .body { margin-top:8px; }
+  details.subcard .body p { margin:8px 0; color:#dde4ec; }
+  details.subcard .body blockquote { color:#cfd6e0; }
+  details.subcard .subact { display:flex; gap:8px; justify-content:flex-end; align-items:center; margin-top:6px; }
+  details.subcard .subact button { font-size:12.5px; padding:5px 12px; }
+  article.card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px 15px 15px; margin:0 0 14px; }
+  article.card .head { display:flex; align-items:flex-start; gap:10px; }
+  article.card .spacer { flex:1; }
+  article.card h3 { flex:1; font-size:16.5px; margin:2px 0 8px; color:#fff; line-height:1.5; }
+  button.likeBtn { padding:6px 10px; border-radius:9px; font-size:13px; color:var(--dim); }
+  button.likeBtn.on { color:#ff6b81; border-color:#ff6b81; }
+  button.likeBtn span { font-variant-numeric:tabular-nums; }
+  article.card .body p { margin:8px 0; }
+  article.card .body ul { margin:6px 0; padding-left:20px; }
+  article.card .body li { margin:4px 0; color:#d7dde6; }
+  article.card .body li b, article.card .body p b { color:#fff; }
+  article.card .body a { color:var(--accent); text-decoration:none; border-bottom:1px dotted rgba(126,224,192,.5); }
+  article.card .body a:active { opacity:.7; }
+  article.card .body blockquote { margin:8px 0; padding:9px 13px; border-left:3px solid #3a4150; background:var(--card2); border-radius:0 10px 10px 0; color:#cfd6e0; }
+  .empty { color:var(--dim); text-align:center; padding:60px 0; line-height:2; }
+  .toast { position:fixed; left:50%; bottom:30px; transform:translateX(-50%); background:#0f3d31; color:var(--accent); border:1px solid #1f5b4a; padding:9px 18px; border-radius:999px; opacity:0; transition:opacity .18s; pointer-events:none; z-index:99; font-size:14px; }
+  .toast.on { opacity:1; }
+  .foot { color:var(--dim); font-size:12px; margin:18px 0 0; }
+  .foot a { color:var(--accent); text-decoration:none; }
+</style>
+</head>
+<body>
+<header><span class="dot"></span><h1>散帅灵感库</h1><button id="theme" title="切换日间/夜间">🌙</button><button id="copyAll" class="primary">复制全文</button><button id="refresh">刷新</button></header>
+<main>
+  <div class="bar">
+    <select id="picker"></select>
+    <button id="top">回今天</button>
+  </div>
+  <div id="dayhead"></div>
+  <nav class="tabs" id="tabs"></nav>
+  <div id="content"><div class="empty">正在加载今天的灵感…</div></div>
+  <div class="foot" id="foot"></div>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+const DATA_URL = ${JSON.stringify(`${pagePath}/data.json`)};
+let days = [], current = 0, tab = 0, secIdx = {};
+let quota = { used: 0, limit: 0 };
+// 今日壁纸：候选来自电脑那侧抓的一批；不够用时网页自己再抽（走公共 CORS 代理）
+let wallpapers = [];
+let wallIndex = 0;
+let wallPage = 1;
+let wallPulling = false;
+const WALL_API = 'https://wallhaven.cc/api/v1/search?sorting=random&categories=111&purity=100&ratios=9x16&atleast=1440x2560&page=';
+const WALL_PROXIES = [
+  function (u) { return u; },
+  function (u) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
+  function (u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); },
+  function (u) { return 'https://corsproxy.io/?' + encodeURIComponent(u); },
+];
+// 点赞：本地记「我点过没」，数字走公共计数器（跨设备统计）
+const COUNTER_BASE = 'https://abacus.jasoncameron.dev';
+const COUNTER_NS = 'dsh-daily-inspiration';
+const likeSync = {};
+let likes = (function () { try { return JSON.parse(localStorage.getItem('dsh-likes') || '{}') || {}; } catch (e) { return {}; } })();
+function saveLikes() { try { localStorage.setItem('dsh-likes', JSON.stringify(likes)); } catch (e) {} }
+function cardKey(day, secIndex, itemIndex) { return (day.date + '-s' + secIndex + '-i' + itemIndex).replace(/[^0-9a-zA-Z\-]/g, ''); }
+const copyPool = [];
+function reg(t) { copyPool.push(t); return copyPool.length - 1; }
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function inline(t) { return t.replace(/\\[([^\\]]+)\\]\\((https?:\\/\\/[^\\s)]+)\\)/g, function (m, text, url) { var dy = /(^|\\/\\/)(www\\.)?douyin\\.com\\//.test(url) ? ' data-app="douyin"' : ''; return '<a href="' + url + '"' + dy + ' target="_blank" rel="noopener noreferrer">' + text + '</a>'; }).replace(/\\*\\*(.+?)\\*\\*/g, '<b>$1</b>'); }
+function body(src) {
+  const out = [];
+  let inList = false;
+  for (const raw of esc(src).split(/\\r?\\n/)) {
+    const line = raw.trim();
+    if (line === '') { if (inList) { out.push('</ul>'); inList = false; } continue; }
+    if (/^-\\s+/.test(line)) { if (!inList) { out.push('<ul>'); inList = true; } out.push('<li>' + inline(line.replace(/^-\\s+/, '')) + '</li>'); continue; }
+    if (/^&gt;\\s?/.test(line)) { if (inList) { out.push('</ul>'); inList = false; } out.push('<blockquote>' + inline(line.replace(/^&gt;\\s?/, '')) + '</blockquote>'); continue; }
+    if (inList) { out.push('</ul>'); inList = false; }
+    out.push('<p>' + inline(line) + '</p>');
+  }
+  if (inList) out.push('</ul>');
+  return out.join('');
+}
+
+function card(title, text, extra, key) {
+  const i = reg(text);
+  const like = key !== undefined && key !== null ? '<button class="likeBtn" data-k="' + key + '" title="点赞（跨设备统计）">♥ <span>0</span></button>' : '';
+  return '<article class="card"><div class="head">'
+    + (title ? '<h3>' + esc(title) + '</h3>' : '<span class="spacer"></span>')
+    + like
+    + '<button data-i="' + i + '">复制</button></div>'
+    + '<div class="body">' + body(text) + '</div>'
+    + (extra || '')
+    + '</article>';
+}
+
+/** 二级卡片：挂在选题下面的剧本（默认折叠；底部有「收起」，点卡片外也会自动收回） */
+function subCard(title, text, key) {
+  const i = reg(text);
+  const like = key !== undefined && key !== null ? '<button class="likeBtn" data-k="' + key + '" title="点赞（跨设备统计）">♥ <span>0</span></button>' : '';
+  return '<details class="subcard"' + (key !== undefined && key !== null ? ' data-k="' + key + '"' : '') + '><summary>' + (title ? esc(title) + '　' : '') + '点开读</summary>'
+    + '<div class="body">' + body(text) + '</div>'
+    + '<div class="subact">' + like + '<button class="collapseBtn" type="button">收起 ▲</button><button data-i="' + i + '">复制这篇</button></div></details>';
+}
+
+function render() {
+  const box = document.getElementById('content');
+  const head = document.getElementById('dayhead');
+  const tabsEl = document.getElementById('tabs');
+  copyPool.length = 0;
+  const day = days[current];
+  if (!day) {
+    head.innerHTML = ''; tabsEl.innerHTML = '';
+    box.innerHTML = '<div class="empty">还没有生成任何一天。<br>回 DSH 说一句「跑一次灵感」就有了。</div>';
+    return;
+  }
+  const sp = day.split || { title: '', sections: [], meta: [] };
+  // 小故事不再单独占一个标签，而是挂到对应选题下面（一二级卡片）
+  const storySec = sp.sections.filter(function (s) { return s.title.indexOf('故事') >= 0 || s.title.indexOf('剧本') >= 0 || s.title.indexOf('小说') >= 0; })[0];
+  const tabList = sp.sections
+    .map(function (s, i) { return { s: s, i: i }; })
+    .filter(function (e) { return e.s !== storySec; });
+  const hotAt = tabList.map(function (e) { return e.s.title.indexOf('热榜') >= 0; }).indexOf(true);
+  if (hotAt >= 0) tabList.push(tabList.splice(hotAt, 1)[0]);
+  tabList.push({ s: { title: '今日壁纸', items: [], wall: true }, i: -1, wall: true });
+  if (tab < 0 || tab >= tabList.length) tab = 0;
+  head.innerHTML = '<div class="daytitle">' + esc(day.date) + (day.slot ? '　（第 ' + (day.slot + 1) + ' 版）' : '') + '</div>';
+  tabsEl.innerHTML = tabList.map(function (e, idx) {
+    return '<button data-t="' + idx + '"' + (idx === tab ? ' class="on"' : '') + '>' + esc(e.s.title) + '</button>';
+  }).join('');  tabsEl.querySelectorAll('button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      tab = Number(b.getAttribute('data-t'));
+      render();
+      window.scrollTo(0, 0);
+    });
+  });
+  const sec = tabList[tab] !== undefined ? tabList[tab].s : undefined;
+  // 重渲染前记住哪些剧本是展开的，渲染后恢复（自动更新时不打断阅读）
+  const openKeys = Array.prototype.map.call(document.querySelectorAll('details.subcard[open][data-k]'), function (d) { return d.getAttribute('data-k'); });
+  let html = '';
+  if (tab === 0 && day.quote) {
+    const qi = reg(day.quote);
+    html += '<div class="quote">「' + esc(day.quote) + '」<div class="qact"><button data-i="' + qi + '">复制金句</button></div></div>';
+  }
+  if (sec !== undefined && sec.wall === true) {
+    html += wallCard();
+  } else if (sec && sec.items.length > 0) {
+    const showAll = sec.title.indexOf('热榜') >= 0 || sec.title.indexOf('科普') >= 0;
+    const isIdeas = sec.title.indexOf('选题') >= 0;
+    const secKey = tabList[tab] !== undefined ? tabList[tab].i : tab;
+    const storyIdx = storySec !== undefined ? sp.sections.indexOf(storySec) : -1;
+    const chunk = showAll ? sec.items.length : (isIdeas ? Math.ceil(sec.items.length / 2) : 1);
+    const pages = Math.max(1, Math.ceil(sec.items.length / chunk));
+    if (showAll) {
+      for (let i = 0; i < sec.items.length; i++) html += card(sec.items[i].title, sec.items[i].body, '', cardKey(day, secKey, i));
+    } else {
+      if (!(tab in secIdx) || secIdx[tab] >= pages) secIdx[tab] = 0;
+      const start = secIdx[tab] * chunk;
+      const slice = sec.items.slice(start, start + chunk);
+      for (let j = 0; j < slice.length; j++) {
+        const item = slice[j];
+        const story = isIdeas && storySec !== undefined ? storySec.items[start + j] : undefined;
+        html += card(
+          item.title,
+          item.body,
+          story !== undefined ? subCard(story.title, story.body, cardKey(day, storyIdx, start + j)) : '',
+          cardKey(day, secKey, start + j),
+        );
+      }
+      if (pages > 1) html += '<div class="nextwrap"><button class="nextBtn" data-sec="' + tab + '">下一条 ↻ ' + (secIdx[tab] + 1) + '/' + pages + '</button></div>';
+    }
+  }
+  if (sp.meta && sp.meta.length > 0) html += '<div class="meta" style="margin-top:14px">' + sp.meta.map(esc).join('<br>') + '</div>';
+  box.innerHTML = html;
+  box.querySelectorAll('button[data-i]').forEach(function (b) {
+    b.addEventListener('click', function () { copyText(copyPool[Number(b.getAttribute('data-i'))]); });
+  });
+  box.querySelectorAll('button.likeBtn[data-k]').forEach(function (b) {
+    b.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      toggleLike(b.getAttribute('data-k'));
+    });
+  });
+  bindWall();
+  paintLikes();
+  openKeys.forEach(function (k) {
+    const d = document.querySelector('details.subcard[data-k="' + k + '"]');
+    if (d !== null) d.open = true;
+  });
+  box.querySelectorAll('.collapseBtn').forEach(function (b) {
+    b.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      const d = b.parentNode;
+      while (d && d.tagName !== 'DETAILS') d = d.parentNode;
+      if (d) {
+        d.open = false;
+        try { d.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { d.scrollIntoView(); }
+      }
+    });
+  });
+  box.querySelectorAll('.nextBtn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      const t = Number(b.getAttribute('data-sec'));
+      const s = tabList[t] !== undefined ? tabList[t].s : undefined;
+      if (!s || s.items.length === 0) return;
+      const c = s.title.indexOf('热榜') >= 0 ? s.items.length : (s.title.indexOf('选题') >= 0 ? Math.ceil(s.items.length / 2) : 1);
+      const p = Math.max(1, Math.ceil(s.items.length / c));
+      secIdx[t] = ((secIdx[t] || 0) + 1) % p;
+      render();
+      window.scrollTo(0, 0);
+    });
+  });
+}
+
+function copyText(t) {
+  if (!t) return;
+  const done = function (ok) { toast(ok ? '已复制，去粘贴吧' : '复制失败，长按文字手动选'); };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(t).then(function () { done(true); }, function () { done(fallback(t)); });
+  } else { done(fallback(t)); }
+}
+function fallback(t) {
+  const ta = document.createElement('textarea');
+  ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+  ta.remove();
+  return ok;
+}
+function toast(t) { const el = document.getElementById('toast'); el.textContent = t; el.classList.add('on'); setTimeout(function () { el.classList.remove('on'); }, 1500); }
+
+/** 今日壁纸：一次就一张。抽走了就回不来 —— 想再看得抽新的。
+ *  图源用 Picsum（fastly CDN，手机一定能显示；固定 1440×2560 竖屏 2K，自带跨域头所以能下载）。 */
+let wallSeed = 0;
+let wallFails = 0;
+let wallUrl = '';
+const WALL_BASE = 'https://picsum.photos/';
+const WALL_HD = WALL_BASE + '1440/2560?random=';
+const WALL_FAST = WALL_BASE + '1080/1920?random=';
+
+/** 抽一张新的：不分风格，每次随机挑一个源（都是手机上快的；2K 大图只在你点下载时才拉） */
+function withBust(u) { return u + (u.indexOf('?') >= 0 ? '&' : '?') + 'r=' + String(Date.now()); }
+
+function newWallUrl() {
+  wallSeed = Math.floor(Date.now() / 1000) % 100000 + Math.floor(Math.random() * 1000);
+  const n = String(wallSeed);
+  const local = wallpapers.filter(function (w) { return String(w.url).indexOf('wallpapers/') === 0; });
+  if (local.length > 0 && Math.random() < 0.25) {
+    wallUrl = local[Math.floor(Math.random() * local.length)].url;
+    return wallUrl;
+  }
+  wallUrl = WALL_FAST + n;
+}
+
+/** 下载：摄影源能换同图的 2K 版，其它源就是当前这张 */
+function wallDownloadUrl() {
+  if (wallUrl.indexOf('picsum.photos/1080/1920') > 0) return wallUrl.replace('1080/1920', '1440/2560');
+  return wallUrl;
+}
+
+function wallCard() {
+  const url = wallUrl.length > 0 ? wallUrl : newWallUrl();
+  return '<article class="card wall"><div class="head"><h3>今日壁纸</h3>'
+    + '<button id="wallNext" type="button">换一张 ↻</button>'
+    + '<button id="wallDl" class="primary" type="button">下载</button></div>'
+    + '<div class="body">'
+    + '<div class="wallbox" id="wallBox"><span class="wallhint" id="wallHint">正在抽…</span>'
+    + '<img id="wallImg" alt="今日壁纸" src="' + url + '"></div>'
+    + '<div class="wallnote">失去了就不要再找了，往前看</div>'
+    + '</div></article>'
+    + '<div id="wallFull"><button class="close" id="wallFullClose" type="button">✕ 关闭</button>'
+    + '<img id="wallFullImg" alt="放大查看"><div class="tip">点图片可以再放大 / 缩小 · 点空白处关闭</div></div>';
+}
+
+function bindWall() {
+  const img = document.getElementById('wallImg');
+  const hint = document.getElementById('wallHint');
+  if (img !== null) {
+    img.addEventListener('load', function () { wallFails = 0; if (hint !== null) hint.style.display = 'none'; });
+    img.addEventListener('error', function () {
+      wallFails += 1;
+      if (wallFails <= 3) {
+        const local = wallpapers.filter(function (w) { return String(w.url).indexOf('wallpapers/') === 0; });
+        if (local.length > 0 && wallUrl.indexOf('wallpapers/') !== 0) {
+          wallUrl = local[Math.floor(Math.random() * local.length)].url;
+        } else {
+          wallSeed = Math.floor(Math.random() * 99999);
+          wallUrl = WALL_FAST + String(wallSeed);
+        }
+        img.src = withBust(wallUrl);
+        return;
+      }
+      if (hint !== null) { hint.style.display = ''; hint.textContent = '这张没抽上来，点「换一张」再来'; }
+    });
+  }
+  const box = document.getElementById('wallBox');
+  if (box !== null) {
+    box.addEventListener('click', function () {
+      const full = document.getElementById('wallFull');
+      const fullImg = document.getElementById('wallFullImg');
+      if (full === null || fullImg === null || wallUrl.length === 0) return;
+      fullImg.src = wallUrl;
+      fullImg.style.transform = 'none';
+      full.classList.add('on');
+    });
+  }
+  const full = document.getElementById('wallFull');
+  if (full !== null) {
+    full.addEventListener('click', function (ev) {
+      const fullImg = document.getElementById('wallFullImg');
+      if (fullImg !== null && ev.target === fullImg) {
+        fullImg.style.transform = fullImg.style.transform === 'scale(2)' ? 'none' : 'scale(2)';
+        return;
+      }
+      full.classList.remove('on');
+    });
+  }
+  const next = document.getElementById('wallNext');
+  if (next !== null) {
+    next.addEventListener('click', function () {
+      newWallUrl();
+      const cur = document.getElementById('wallImg');
+      const h = document.getElementById('wallHint');
+      if (h !== null) { h.style.display = ''; h.textContent = '正在抽…'; }
+      if (cur !== null) cur.src = withBust(wallUrl);
+      toast('换了一张，上一张找不回来了');
+    });
+  }
+  const dl = document.getElementById('wallDl');
+  if (dl !== null) {
+    dl.addEventListener('click', function () { void downloadWall(); });
+  }
+}
+
+async function downloadWall() {
+  if (wallUrl.length === 0) return;
+  toast('正在准备下载…');
+  try {
+    const dlUrl = wallDownloadUrl();
+    const res = await fetch(dlUrl, { cache: 'no-store' });
+    if (!res.ok) throw new Error('bad status');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'wallpaper-' + String(wallSeed) + '.jpg';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 8000);
+    toast('已开始下载');
+  } catch (e) {
+    window.open(wallDownloadUrl(), '_blank');
+    toast('已打开原图，长按保存即可');
+  }
+}
+
+/** 保底来源：Picsum（自带跨域头，电脑没开也能一直抽；固定给 1440×2560 竖屏 2K） */
+async function pullPicsum() {
+  try {
+    const res = await fetch('https://picsum.photos/v2/list?page=' + wallPage + '&limit=20', { cache: 'no-store' });
+    if (!res.ok) return [];
+    const j = await res.json();
+    if (!Array.isArray(j)) return [];
+    return j
+      .map(function (x) {
+        const id = String(x.id || '');
+        return {
+          id: 'picsum-' + id,
+          resolution: '1440×2560',
+          url: 'https://picsum.photos/id/' + id + '/1440/2560',
+          thumb: 'https://picsum.photos/id/' + id + '/720/1280',
+          note: '随机摄影（电脑没开时的保底）',
+        };
+      })
+      .filter(function (x) { return x.id !== 'picsum-'; });
+  } catch (e) {
+    return [];
+  }
+}
+
+/** 走公共 CORS 代理抽一批新壁纸（Wallhaven 自己不带跨域头）；代理都不通就换 Picsum 保底 */
+async function pullWallpapers() {
+  if (wallPulling) return 0;
+  wallPulling = true;
+  let got = [];
+  for (let i = 0; i < WALL_PROXIES.length && got.length === 0; i++) {
+    try {
+      const res = await fetch(WALL_PROXIES[i](WALL_API + wallPage), { cache: 'no-store' });
+      if (!res.ok) continue;
+      const j = await res.json();
+      got = (j.data || []).map(function (x) {
+        return { id: String(x.id || ''), resolution: String(x.resolution || ''), url: String(x.path || ''), thumb: String((x.thumbs && (x.thumbs.large || x.thumbs.original)) || x.path || '') };
+      }).filter(function (x) { return /^https:\\/\\/w\\.wallhaven\\.cc\\//.test(x.url); });
+    } catch (e) { /* 换下一个代理 */ }
+  }
+  if (got.length === 0) got = await pullPicsum();
+  wallPulling = false;
+  if (got.length > 0) {
+    wallPage += 1;
+    wallpapers = wallpapers.concat(got);
+  }
+  return got.length;
+}
+
+function setWall(next) {
+  if (wallpapers.length === 0) return;
+  wallIndex = ((next % wallpapers.length) + wallpapers.length) % wallpapers.length;
+  render();
+  const img = document.getElementById('wallImg');
+  const w = wallpapers[wallIndex];
+  if (img !== null && w !== undefined && w.url !== w.thumb) {
+    const big = new Image();
+    big.onload = function () { if (document.getElementById('wallImg') === img) img.src = big.src; };
+    big.src = w.url;
+  }
+}
+
+async function downloadWall() {
+  const w = wallpapers[wallIndex];
+  if (w === undefined) return;
+  const name = 'wallpaper-' + (w.id || String(wallIndex + 1)) + (w.url.indexOf('.png') > 0 ? '.png' : '.jpg');
+  toast('正在准备下载…');
+  for (const wrap of WALL_PROXIES) {
+    try {
+      const res = await fetch(wrap(w.url), { cache: 'no-store' });
+      if (!res.ok) continue;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 8000);
+      toast('已开始下载 ' + name);
+      return;
+    } catch (e) { /* 换下一个代理 */ }
+  }
+  window.open(w.url, '_blank');
+  toast('已打开原图，长按保存即可');
+}
+function paintLikes() {
+  const btns = document.querySelectorAll('button.likeBtn[data-k]');
+  btns.forEach(function (b) {
+    const k = b.getAttribute('data-k');
+    const rec = likes[k] || { liked: false, count: 0 };
+    if (rec.liked === true) b.classList.add('on'); else b.classList.remove('on');
+    const span = b.querySelector('span');
+    if (span) span.textContent = String(rec.count || 0);
+  });
+  if (navigator.onLine === false) return;
+  btns.forEach(function (b) { syncLike(b.getAttribute('data-k')); });
+}
+function syncLike(k) {
+  if (k === null || k === undefined || likeSync[k] === true) return;
+  likeSync[k] = true;
+  fetch(COUNTER_BASE + '/get/' + COUNTER_NS + '/' + k, { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (d !== null && typeof d.value === 'number') {
+        const rec = likes[k] || { liked: false, count: 0 };
+        rec.count = d.value;
+        likes[k] = rec;
+        saveLikes();
+        const b = document.querySelector('button.likeBtn[data-k="' + k + '"]');
+        if (b) { const s = b.querySelector('span'); if (s) s.textContent = String(d.value); }
+      }
+    })
+    .catch(function () {})
+    .then(function () { likeSync[k] = false; });
+}
+function toggleLike(k) {
+  if (k === null || k === undefined) return;
+  const rec = likes[k] || { liked: false, count: 0 };
+  if (rec.liked === true) {
+    rec.liked = false;
+    likes[k] = rec;
+    saveLikes();
+    paintLikes();
+    toast('已取消（统计里的数不会掉）');
+    return;
+  }
+  rec.liked = true;
+  rec.count = (rec.count || 0) + 1;
+  likes[k] = rec;
+  saveLikes();
+  paintLikes();
+  toast('已点赞 ♥');
+  fetch(COUNTER_BASE + '/hit/' + COUNTER_NS + '/' + k, { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (d !== null && typeof d.value === 'number') {
+        rec.count = d.value;
+        likes[k] = rec;
+        saveLikes();
+        paintLikes();
+      }
+    })
+    .catch(function () { toast('离线：只记在本地'); });
+}
+
+/** 今日额度用完 → 把「刷新」置灰，别人点不了（重新打开页面仍能看到最新内容） */
+function updateRefreshButton() {
+  const btn = document.getElementById('refresh');
+  if (!btn) return;
+  const exhausted = quota.limit > 0 && quota.used >= quota.limit;
+  btn.disabled = exhausted;
+  btn.textContent = exhausted ? '额度已用完' : '刷新';
+  btn.title = exhausted
+    ? '今天的出卡额度已用完（' + quota.used + '/' + quota.limit + '）：重新打开页面仍可看到最新内容'
+    : '重新拉取最新内容';
+}
+
+document.getElementById('refresh').onclick = function () { load(true); };
+
+// 日间 / 夜间：手动切换并记住；没选过就跟随系统
+function applyTheme(mode) {
+  document.documentElement.setAttribute('data-theme', mode);
+  const btn = document.getElementById('theme');
+  if (btn) {
+    btn.textContent = mode === 'light' ? '☀️' : '🌙';
+    btn.title = mode === 'light' ? '当前：日间（点一下切夜间）' : '当前：夜间（点一下切日间）';
+  }
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', mode === 'light' ? '#f4f6f8' : '#111318');
+}
+function pickTheme() {
+  try {
+    const saved = localStorage.getItem('dsh-theme');
+    if (saved === 'light' || saved === 'dark') return saved;
+  } catch (e) {}
+  try {
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  } catch (e) {
+    return 'dark';
+  }
+}
+let theme = pickTheme();
+applyTheme(theme);
+document.getElementById('theme').onclick = function () {
+  theme = theme === 'light' ? 'dark' : 'light';
+  try { localStorage.setItem('dsh-theme', theme); } catch (e) {}
+  applyTheme(theme);
+};
+document.getElementById('copyAll').onclick = function () { const d = days[current]; if (d) copyText(d.markdown); };
+document.getElementById('top').onclick = function () {
+  current = 0; tab = 0; secIdx = {}; document.getElementById('picker').value = '0';
+  render(); window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+document.getElementById('picker').onchange = function (e) { current = Number(e.target.value); tab = 0; secIdx = {}; render(); };
+
+// 点卡片外面：自动把展开的故事收回去（省得滚到底或翻回顶部去找关闭）
+document.addEventListener('click', function (ev) {
+  const t = ev.target;
+  const inside = t !== null && t !== undefined && typeof t.closest === 'function' ? t.closest('details.subcard') : null;
+  document.querySelectorAll('details.subcard[open]').forEach(function (d) { if (d !== inside) d.open = false; });
+}, true);
+
+// 手机上点抖音条目：先试唤起 App（snssdk1128://），1.4 秒没起来就自动回落网页版
+document.addEventListener('click', function (ev) {
+  const a = ev.target !== null && ev.target !== undefined && typeof ev.target.closest === 'function' ? ev.target.closest('a[data-app="douyin"]') : null;
+  if (a === null || !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) return;
+  const web = a.getAttribute('href');
+  if (web === null) return;
+  ev.preventDefault();
+  const keyword = encodeURIComponent((a.textContent || '').trim());
+  let opened = false;
+  const onHide = function () { opened = true; };
+  document.addEventListener('visibilitychange', onHide, { once: true });
+  setTimeout(function () {
+    document.removeEventListener('visibilitychange', onHide);
+    if (!opened && !document.hidden && Date.now() - start < 2800) window.location.href = web;
+  }, 1400);
+  const start = Date.now();
+  window.location.href = 'snssdk1128://search?keyword=' + keyword;
+}, true);
+
+async function load(manual) {
+  try {
+    const res = await fetch(DATA_URL, { cache: 'no-store' });
+    const data = await res.json();
+    days = Array.isArray(data.days) ? data.days : [];
+    quota = data.quota !== undefined && typeof data.quota.used === 'number' ? data.quota : { used: 0, limit: 0 };
+    wallpapers = Array.isArray(data.wallpapers) ? data.wallpapers : wallpapers;
+    if (wallIndex >= wallpapers.length) wallIndex = 0;
+    updateRefreshButton();
+    if (manual) { current = 0; tab = 0; secIdx = {}; }
+    const picker = document.getElementById('picker');
+    picker.innerHTML = days.map(function (d, i) { return '<option value="' + i + '">' + d.date + (d.slot ? '　v' + (d.slot + 1) : '') + '</option>'; }).join('');
+    picker.value = String(current);
+    render();
+    document.getElementById('foot').innerHTML = '';
+  } catch (e) {
+    document.getElementById('content').innerHTML = '<div class="empty">读取失败：' + esc(String(e)) + '</div>';
+  }
+}
+load(false);
+
+// 自动更新：每 3 分钟拉一次最新数据；切回页面/重新聚焦时立刻拉一次（保持当前选中的日期和标签）
+setInterval(function () { if (document.hidden !== true) load(false); }, 180000);
+document.addEventListener('visibilitychange', function () { if (document.hidden !== true) load(false); });
+window.addEventListener('focus', function () { load(false); });
+
+// 壁纸每 15 分钟自动换一张（页面开着就换；切回来超过 15 分钟也换）
+setInterval(function () {
+  if (document.hidden === true) return;
+  newWallUrl();
+  const img = document.getElementById('wallImg');
+  if (img !== null) img.src = withBust(wallUrl);
+}, 900000);
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden === true) return;
+  const last = Number(sessionStorage.getItem('dsh-wall-at') || '0');
+  if (Date.now() - last > 900000) {
+    newWallUrl();
+    const img = document.getElementById('wallImg');
+    if (img !== null) img.src = withBust(wallUrl);
+  }
+  try { sessionStorage.setItem('dsh-wall-at', String(Date.now())); } catch (e) {}
+});
+</script>
+</body>
+</html>`;
+}
+//# sourceMappingURL=page.js.map
