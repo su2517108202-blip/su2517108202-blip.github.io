@@ -367,7 +367,7 @@ async function pullWallpapers() {
       const j = await res.json();
       got = (j.data || []).map(function (x) {
         return { id: String(x.id || ''), resolution: String(x.resolution || ''), url: String(x.path || ''), thumb: String((x.thumbs && (x.thumbs.large || x.thumbs.original)) || x.path || '') };
-      }).filter(function (x) { return /^https://w.wallhaven.cc//.test(x.url); });
+      }).filter(function (x) { return /^https:\/\/w\.wallhaven\.cc\//.test(x.url); });
     } catch (e) { /* 换下一个代理 */ }
   }
   if (got.length === 0) got = await pullPicsum();
