@@ -300,12 +300,15 @@ function toast(t) { const el = document.getElementById('toast'); el.textContent 
 /** 今日壁纸：一次就一张。抽走了就回不来 —— 想再看得抽新的。
  *  图源用 Picsum（fastly CDN，手机一定能显示；固定 1440×2560 竖屏 2K，自带跨域头所以能下载）。 */
 let wallSeed = 0;
+let wallFails = 0;
 let wallUrl = '';
 const WALL_BASE = 'https://picsum.photos/';
 const WALL_HD = WALL_BASE + '1440/2560?random=';
 const WALL_FAST = WALL_BASE + '1080/1920?random=';
 
 /** 抽一张新的：不分风格，每次随机挑一个源（都是手机上快的；2K 大图只在你点下载时才拉） */
+function withBust(u) { return u + (u.indexOf('?') >= 0 ? '&' : '?') + 'r=' + String(Date.now()); }
+
 function newWallUrl() {
   wallSeed = Math.floor(Date.now() / 1000) % 100000 + Math.floor(Math.random() * 1000);
   const n = String(wallSeed);
@@ -341,8 +344,20 @@ function bindWall() {
   const img = document.getElementById('wallImg');
   const hint = document.getElementById('wallHint');
   if (img !== null) {
-    img.addEventListener('load', function () { if (hint !== null) hint.style.display = 'none'; });
+    img.addEventListener('load', function () { wallFails = 0; if (hint !== null) hint.style.display = 'none'; });
     img.addEventListener('error', function () {
+      wallFails += 1;
+      if (wallFails <= 3) {
+        const local = wallpapers.filter(function (w) { return String(w.url).indexOf('wallpapers/') === 0; });
+        if (local.length > 0 && wallUrl.indexOf('wallpapers/') !== 0) {
+          wallUrl = local[Math.floor(Math.random() * local.length)].url;
+        } else {
+          wallSeed = Math.floor(Math.random() * 99999);
+          wallUrl = WALL_FAST + String(wallSeed);
+        }
+        img.src = withBust(wallUrl);
+        return;
+      }
       if (hint !== null) { hint.style.display = ''; hint.textContent = '这张没抽上来，点「换一张」再来'; }
     });
   }
@@ -375,7 +390,7 @@ function bindWall() {
       const cur = document.getElementById('wallImg');
       const h = document.getElementById('wallHint');
       if (h !== null) { h.style.display = ''; h.textContent = '正在抽…'; }
-      if (cur !== null) cur.src = wallUrl + '&t=' + String(Date.now());
+      if (cur !== null) cur.src = withBust(wallUrl);
       toast('换了一张，上一张找不回来了');
     });
   }
@@ -661,7 +676,7 @@ setInterval(function () {
   if (document.hidden === true) return;
   newWallUrl();
   const img = document.getElementById('wallImg');
-  if (img !== null) img.src = wallUrl + (wallUrl.indexOf('?') > 0 ? '&' : '?') + 'r=' + String(Date.now());
+  if (img !== null) img.src = withBust(wallUrl);
 }, 900000);
 document.addEventListener('visibilitychange', function () {
   if (document.hidden === true) return;
@@ -669,7 +684,7 @@ document.addEventListener('visibilitychange', function () {
   if (Date.now() - last > 900000) {
     newWallUrl();
     const img = document.getElementById('wallImg');
-    if (img !== null) img.src = wallUrl + (wallUrl.indexOf('?') > 0 ? '&' : '?') + 'r=' + String(Date.now());
+    if (img !== null) img.src = withBust(wallUrl);
   }
   try { sessionStorage.setItem('dsh-wall-at', String(Date.now())); } catch (e) {}
 });
