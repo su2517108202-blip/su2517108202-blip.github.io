@@ -11,6 +11,24 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
   :root { color-scheme: dark; --bg:#111318; --card:#1a1d24; --card2:#15181e; --fg:#e9edf2; --dim:#98a2b3; --line:#262b34; --accent:#7ee0c0; --gold:#f7c948; }
+  :root[data-theme="light"] { color-scheme: light; --bg:#f4f6f8; --card:#ffffff; --card2:#f0f3f7; --fg:#1a1e26; --dim:#5d6775; --line:#e1e5ec; --accent:#0d8f6c; --gold:#a9780a; }
+  :root[data-theme="light"] header { background:rgba(244,246,248,.92); }
+  :root[data-theme="light"] button { background:#ffffff; border-color:#d7dde6; color:#1a1e26; }
+  :root[data-theme="light"] button.primary { background:#e6f6f1; border-color:#b3e2d3; color:#0d8f6c; }
+  :root[data-theme="light"] .tabs button { background:#ffffff; border-color:#dde2ea; color:var(--dim); }
+  :root[data-theme="light"] .tabs button.on { background:#e6f6f1; border-color:#b3e2d3; color:var(--accent); }
+  :root[data-theme="light"] .bar select { background:#ffffff; border-color:#dde2ea; color:#1a1e26; }
+  :root[data-theme="light"] article.card h3 { color:#0f1319; }
+  :root[data-theme="light"] article.card .body p, :root[data-theme="light"] article.card .body li { color:#252b35; }
+  :root[data-theme="light"] article.card .body p b, :root[data-theme="light"] article.card .body li b { color:#000000; }
+  :root[data-theme="light"] article.card .body blockquote { background:#f2f4f7; border-left-color:#c7d0dc; color:#39414d; }
+  :root[data-theme="light"] article.card .body a { border-bottom-color:rgba(13,143,108,.45); }
+  :root[data-theme="light"] .quote { background:linear-gradient(135deg,#fffdf6,#fdf4e4); border-color:#eadfc4; color:#5b4a21; }
+  :root[data-theme="light"] details.subcard { background:#fafbfc; border-color:#dbe1e9; }
+  :root[data-theme="light"] details.subcard .body p { color:#252b35; }
+  :root[data-theme="light"] details.subcard .body blockquote { color:#39414d; }
+  :root[data-theme="light"] .toast { background:#e6f6f1; border-color:#b3e2d3; color:#0d8f6c; }
+  :root[data-theme="light"] .nextwrap button { background:#e6f6f1; border-color:#b3e2d3; color:#0d8f6c; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.75 -apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif; padding:0 0 env(safe-area-inset-bottom); }
   header { position:sticky; top:0; z-index:9; height:calc(52px + env(safe-area-inset-top)); padding:env(safe-area-inset-top) 14px 0; backdrop-filter:blur(12px); background:rgba(17,19,24,.9); border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px; }
@@ -61,7 +79,7 @@
 </style>
 </head>
 <body>
-<header><span class="dot"></span><h1>每日灵感</h1><button id="copyAll" class="primary">复制全文</button><button id="refresh">刷新</button></header>
+<header><span class="dot"></span><h1>每日灵感</h1><button id="theme" title="切换日间/夜间">🌙</button><button id="copyAll" class="primary">复制全文</button><button id="refresh">刷新</button></header>
 <main>
   <div class="bar">
     <select id="picker"></select>
@@ -232,6 +250,36 @@ function updateRefreshButton() {
 }
 
 document.getElementById('refresh').onclick = function () { load(true); };
+
+// 日间 / 夜间：手动切换并记住；没选过就跟随系统
+function applyTheme(mode) {
+  document.documentElement.setAttribute('data-theme', mode);
+  const btn = document.getElementById('theme');
+  if (btn) {
+    btn.textContent = mode === 'light' ? '☀️' : '🌙';
+    btn.title = mode === 'light' ? '当前：日间（点一下切夜间）' : '当前：夜间（点一下切日间）';
+  }
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', mode === 'light' ? '#f4f6f8' : '#111318');
+}
+function pickTheme() {
+  try {
+    const saved = localStorage.getItem('dsh-theme');
+    if (saved === 'light' || saved === 'dark') return saved;
+  } catch (e) {}
+  try {
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  } catch (e) {
+    return 'dark';
+  }
+}
+let theme = pickTheme();
+applyTheme(theme);
+document.getElementById('theme').onclick = function () {
+  theme = theme === 'light' ? 'dark' : 'light';
+  try { localStorage.setItem('dsh-theme', theme); } catch (e) {}
+  applyTheme(theme);
+};
 document.getElementById('copyAll').onclick = function () { const d = days[current]; if (d) copyText(d.markdown); };
 document.getElementById('top').onclick = function () {
   current = 0; tab = 0; secIdx = {}; document.getElementById('picker').value = '0';
