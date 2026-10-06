@@ -81,7 +81,7 @@ const copyPool = [];
 function reg(t) { copyPool.push(t); return copyPool.length - 1; }
 
 function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function inline(t) { return t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'); }
+function inline(t) { return t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, function (m, text, url) { var dy = /(^|\/\/)(www\.)?douyin\.com\//.test(url) ? ' data-app="douyin"' : ''; return '<a href="' + url + '"' + dy + ' target="_blank" rel="noopener noreferrer">' + text + '</a>'; }).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'); }
 function body(src) {
   const out = [];
   let inList = false;
@@ -244,6 +244,25 @@ document.addEventListener('click', function (ev) {
   const t = ev.target;
   const inside = t !== null && t !== undefined && typeof t.closest === 'function' ? t.closest('details.subcard') : null;
   document.querySelectorAll('details.subcard[open]').forEach(function (d) { if (d !== inside) d.open = false; });
+}, true);
+
+// 手机上点抖音条目：先试唤起 App（snssdk1128://），1.4 秒没起来就自动回落网页版
+document.addEventListener('click', function (ev) {
+  const a = ev.target !== null && ev.target !== undefined && typeof ev.target.closest === 'function' ? ev.target.closest('a[data-app="douyin"]') : null;
+  if (a === null || !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) return;
+  const web = a.getAttribute('href');
+  if (web === null) return;
+  ev.preventDefault();
+  const keyword = encodeURIComponent((a.textContent || '').trim());
+  let opened = false;
+  const onHide = function () { opened = true; };
+  document.addEventListener('visibilitychange', onHide, { once: true });
+  setTimeout(function () {
+    document.removeEventListener('visibilitychange', onHide);
+    if (!opened && !document.hidden && Date.now() - start < 2800) window.location.href = web;
+  }, 1400);
+  const start = Date.now();
+  window.location.href = 'snssdk1128://search?keyword=' + keyword;
 }, true);
 
 async function load(manual) {
