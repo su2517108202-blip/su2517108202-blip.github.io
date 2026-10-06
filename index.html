@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>每日灵感 · 短剧选题</title>
+<title>散帅灵感库 · 短剧选题</title>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon.svg">
 <meta name="theme-color" content="#111318">
@@ -82,7 +82,7 @@
 </style>
 </head>
 <body>
-<header><span class="dot"></span><h1>每日灵感</h1><button id="theme" title="切换日间/夜间">🌙</button><button id="copyAll" class="primary">复制全文</button><button id="refresh">刷新</button></header>
+<header><span class="dot"></span><h1>散帅灵感库</h1><button id="theme" title="切换日间/夜间">🌙</button><button id="copyAll" class="primary">复制全文</button><button id="refresh">刷新</button></header>
 <main>
   <div class="bar">
     <select id="picker"></select>
@@ -154,7 +154,7 @@ function render() {
   const day = days[current];
   if (!day) {
     head.innerHTML = ''; tabsEl.innerHTML = '';
-    box.innerHTML = '<div class="empty">还没有生成任何一天。<br>回 DSH 说一句「跑一次每日灵感」就有了。</div>';
+    box.innerHTML = '<div class="empty">还没有生成任何一天。<br>回 DSH 说一句「跑一次灵感」就有了。</div>';
     return;
   }
   const sp = day.split || { title: '', sections: [], meta: [] };
