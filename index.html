@@ -310,7 +310,7 @@ function newWallUrl() {
   wallSeed = Math.floor(Date.now() / 1000) % 100000 + Math.floor(Math.random() * 1000);
   const n = String(wallSeed);
   const local = wallpapers.filter(function (w) { return String(w.url).indexOf('wallpapers/') === 0; });
-  if (local.length > 0 && Math.random() < 0.55) {
+  if (local.length > 0 && Math.random() < 0.25) {
     wallUrl = local[Math.floor(Math.random() * local.length)].url;
     return wallUrl;
   }
@@ -655,6 +655,24 @@ load(false);
 setInterval(function () { if (document.hidden !== true) load(false); }, 180000);
 document.addEventListener('visibilitychange', function () { if (document.hidden !== true) load(false); });
 window.addEventListener('focus', function () { load(false); });
+
+// 壁纸每 15 分钟自动换一张（页面开着就换；切回来超过 15 分钟也换）
+setInterval(function () {
+  if (document.hidden === true) return;
+  newWallUrl();
+  const img = document.getElementById('wallImg');
+  if (img !== null) img.src = wallUrl + (wallUrl.indexOf('?') > 0 ? '&' : '?') + 'r=' + String(Date.now());
+}, 900000);
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden === true) return;
+  const last = Number(sessionStorage.getItem('dsh-wall-at') || '0');
+  if (Date.now() - last > 900000) {
+    newWallUrl();
+    const img = document.getElementById('wallImg');
+    if (img !== null) img.src = wallUrl + (wallUrl.indexOf('?') > 0 ? '&' : '?') + 'r=' + String(Date.now());
+  }
+  try { sessionStorage.setItem('dsh-wall-at', String(Date.now())); } catch (e) {}
+});
 </script>
 </body>
 </html>
