@@ -44,14 +44,24 @@
   .bar select { flex:1; min-width:130px; font:inherit; font-size:14px; color:var(--fg); background:#20242c; border:1px solid #2d323c; border-radius:9px; padding:8px 10px; }
   .daytitle { font-size:22px; font-weight:800; margin:2px 0 2px; }
   .meta { color:var(--dim); font-size:12.5px; margin:0; }
-  .tabs { position:sticky; top:calc(52px + env(safe-area-inset-top)); z-index:8; display:flex; gap:7px; overflow-x:auto; padding:10px 0 12px; margin:0 0 6px; background:linear-gradient(var(--bg) 78%, transparent); -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+  .tabs { position:sticky; top:calc(52px + env(safe-area-inset-top)); z-index:8; display:flex; flex-wrap:wrap; gap:7px; padding:10px 0 12px; margin:0 0 6px; background:linear-gradient(var(--bg) 78%, transparent); }
   .tabs::-webkit-scrollbar { display:none; }
   .tabs button { flex:0 0 auto; border-radius:999px; padding:7px 15px; font-size:13.5px; color:var(--dim); background:#1a1d24; border:1px solid #262b34; }
   .tabs button.on { background:#173a31; border-color:#1f5b4a; color:var(--accent); font-weight:700; }
   .quote { background:linear-gradient(135deg,#1c2330,#191d24); border:1px solid #2a3140; border-left:4px solid var(--gold); border-radius:14px; padding:13px 15px; margin:0 0 14px; color:#e8e2cf; font-size:15.5px; }
   .quote .qact { text-align:right; margin-top:4px; }
-  article.card.wall img { width:100%; height:auto; border-radius:12px; display:block; background:#0b0d11; }
-  article.card.wall .meta { margin-top:8px; }
+  article.card.wall .wallbox { position:relative; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--card2); aspect-ratio:9/16; max-height:68vh; margin:0 auto; cursor:zoom-in; display:flex; align-items:center; justify-content:center; }
+  article.card.wall .wallbox img { width:100%; height:100%; object-fit:cover; display:block; }
+  article.card.wall .wallstyles { display:flex; gap:6px; margin-bottom:10px; justify-content:center; }
+  article.card.wall .wallstyles button { padding:5px 14px; font-size:12.5px; border-radius:999px; }
+  article.card.wall .wallstyles button.on { background:#173a31; border-color:#1f5b4a; color:var(--accent); }
+  article.card.wall .wallnote { margin-top:10px; text-align:center; color:var(--dim); font-size:13.5px; letter-spacing:.6px; }
+  article.card.wall .wallhint { position:absolute; color:var(--dim); font-size:13px; }
+  #wallFull { position:fixed; inset:0; background:rgba(0,0,0,.95); display:none; z-index:60; align-items:center; justify-content:center; }
+  #wallFull.on { display:flex; }
+  #wallFull img { max-width:100%; max-height:100%; object-fit:contain; }
+  #wallFull .close { position:absolute; top:14px; right:14px; background:rgba(255,255,255,.16); color:#fff; }
+  #wallFull .tip { position:absolute; bottom:16px; left:0; right:0; text-align:center; color:#c8d0da; font-size:12.5px; }
   .nextwrap { text-align:center; margin:0 0 14px; }
   .nextwrap button { padding:10px 24px; border-radius:999px; background:#173a31; border-color:#1f5b4a; color:var(--accent); font-weight:700; font-size:14px; }
   details.subcard { margin:12px 0 2px; border:1px dashed #33404f; border-left:3px solid var(--accent); border-radius:12px; padding:9px 12px 11px; background:#151a21; }
@@ -177,7 +187,9 @@ function render() {
   const tabList = sp.sections
     .map(function (s, i) { return { s: s, i: i }; })
     .filter(function (e) { return e.s !== storySec; });
-  if (wallpapers.length > 0) tabList.push({ s: { title: '今日壁纸', items: [], wall: true }, i: -1, wall: true });
+  const hotAt = tabList.map(function (e) { return e.s.title.indexOf('热榜') >= 0; }).indexOf(true);
+  if (hotAt >= 0) tabList.push(tabList.splice(hotAt, 1)[0]);
+  tabList.push({ s: { title: '今日壁纸', items: [], wall: true }, i: -1, wall: true });
   if (tab < 0 || tab >= tabList.length) tab = 0;
   head.innerHTML = '<div class="daytitle">' + esc(day.date) + (day.slot ? '　（第 ' + (day.slot + 1) + ' 版）' : '') + '</div>';
   tabsEl.innerHTML = tabList.map(function (e, idx) {
@@ -236,41 +248,7 @@ function render() {
       toggleLike(b.getAttribute('data-k'));
     });
   });
-  const wallNext = document.getElementById('wallNext');
-  if (wallNext !== null) {
-    wallNext.addEventListener('click', function () {
-      if (wallIndex + 1 >= wallpapers.length) {
-        toast('再抽一批…');
-        void pullWallpapers().then(function (n) {
-          if (n === 0) { toast('抽不到新的（代理不通，过会儿再试）'); return; }
-          setWall(wallIndex + 1);
-        });
-        return;
-      }
-      setWall(wallIndex + 1);
-    });
-    // 缩略图先占位，原图在后台悄悄载入（2K 图 1～3MB，不卡界面）
-    const curWall = wallpapers[wallIndex];
-    const wallImg = document.getElementById('wallImg');
-    if (curWall !== undefined && wallImg !== null && curWall.url !== curWall.thumb) {
-      const big = new Image();
-      big.onload = function () { if (document.getElementById('wallImg') === wallImg) wallImg.src = big.src; };
-      big.src = curWall.url;
-    }
-  }
-  const wallDl = document.getElementById('wallDl');
-  if (wallDl !== null) wallDl.addEventListener('click', function () { void downloadWall(); });
-  const wallPull = document.getElementById('wallPull');
-  if (wallPull !== null) {
-    wallPull.addEventListener('click', function () {
-      toast('正在抽…');
-      void pullWallpapers().then(function (n) {
-        if (n === 0) { toast('抽不到（网络问题，稍后再试）'); return; }
-        toast('抽到 ' + n + ' 张');
-        setWall(wallIndex + 1);
-      });
-    });
-  }
+  bindWall();
   paintLikes();
   openKeys.forEach(function (k) {
     const d = document.querySelector('details.subcard[data-k="' + k + '"]');
@@ -319,16 +297,122 @@ function fallback(t) {
 }
 function toast(t) { const el = document.getElementById('toast'); el.textContent = t; el.classList.add('on'); setTimeout(function () { el.classList.remove('on'); }, 1500); }
 
-/** 今日壁纸卡片：换一张（不够就自己再抽）、下载原图 */
+/** 今日壁纸：一次就一张。抽走了就回不来 —— 想再看得抽新的。
+ *  图源用 Picsum（fastly CDN，手机一定能显示；固定 1440×2560 竖屏 2K，自带跨域头所以能下载）。 */
+let wallSeed = 0;
+let wallUrl = '';
+let wallStyle = 'photo';
+const WALL_STYLES = [
+  { key: 'photo', label: '摄影' },
+  { key: 'landscape', label: '风景' },
+  { key: 'anime', label: '插画' },
+];
+const WALL_BASE = 'https://picsum.photos/1440/2560?random=';
+
+/** 抽一张新的。摄影走 Picsum（永远抽得到）；风景/插画从电脑抓的池子里随机挑 */
+function newWallUrl() {
+  wallSeed = Math.floor(Date.now() / 1000) % 100000 + Math.floor(Math.random() * 1000);
+  if (wallStyle === 'photo') { wallUrl = WALL_BASE + String(wallSeed); return wallUrl; }
+  const pool = wallpapers.filter(function (w) { return w.style === wallStyle; });
+  if (pool.length === 0) { wallUrl = WALL_BASE + String(wallSeed); return wallUrl; }
+  wallUrl = pool[Math.floor(Math.random() * pool.length)].url;
+  return wallUrl;
+}
+
 function wallCard() {
-  const w = wallpapers[wallIndex] || null;
-  if (w === null) return '<div class="empty">正在抽壁纸…</div>';
+  const url = wallUrl.length > 0 ? wallUrl : newWallUrl();
+  const styleBtns = WALL_STYLES.map(function (s) {
+    return '<button class="wallStyle' + (s.key === wallStyle ? ' on' : '') + '" data-style="' + s.key + '" type="button">' + s.label + '</button>';
+  }).join('');
   return '<article class="card wall"><div class="head"><h3>今日壁纸 · 2K 竖屏</h3>'
     + '<button id="wallNext" type="button">换一张 ↻</button>'
-    + '<button id="wallPull" type="button">抽新的 +</button>'
     + '<button id="wallDl" class="primary" type="button">下载</button></div>'
-    + '<div class="body"><img id="wallImg" src="' + w.thumb + '" alt="壁纸" loading="lazy">'
-    + '<div class="meta" id="wallMeta">' + esc(w.resolution || '') + '　·　第 ' + (wallIndex + 1) + '/' + wallpapers.length + ' 张' + (w.note !== undefined ? '　·　' + esc(w.note) : '') + '</div></div></article>';
+    + '<div class="body">'
+    + '<div class="wallstyles">' + styleBtns + '</div>'
+    + '<div class="wallbox" id="wallBox"><span class="wallhint" id="wallHint">正在抽…</span>'
+    + '<img id="wallImg" alt="今日壁纸" src="' + url + '"></div>'
+    + '<div class="wallnote">失去了就不要再找了，往前看</div>'
+    + '</div></article>'
+    + '<div id="wallFull"><button class="close" id="wallFullClose" type="button">✕ 关闭</button>'
+    + '<img id="wallFullImg" alt="放大查看"><div class="tip">点图片可以再放大 / 缩小 · 点空白处关闭</div></div>';
+}
+
+function bindWall() {
+  const img = document.getElementById('wallImg');
+  const hint = document.getElementById('wallHint');
+  if (img !== null) {
+    img.addEventListener('load', function () { if (hint !== null) hint.style.display = 'none'; });
+    img.addEventListener('error', function () {
+      if (hint !== null) { hint.style.display = ''; hint.textContent = '这张没抽上来，点「换一张」再来'; }
+    });
+  }
+  const box = document.getElementById('wallBox');
+  if (box !== null) {
+    box.addEventListener('click', function () {
+      const full = document.getElementById('wallFull');
+      const fullImg = document.getElementById('wallFullImg');
+      if (full === null || fullImg === null || wallUrl.length === 0) return;
+      fullImg.src = wallUrl;
+      fullImg.style.transform = 'none';
+      full.classList.add('on');
+    });
+  }
+  const full = document.getElementById('wallFull');
+  if (full !== null) {
+    full.addEventListener('click', function (ev) {
+      const fullImg = document.getElementById('wallFullImg');
+      if (fullImg !== null && ev.target === fullImg) {
+        fullImg.style.transform = fullImg.style.transform === 'scale(2)' ? 'none' : 'scale(2)';
+        return;
+      }
+      full.classList.remove('on');
+    });
+  }
+  const next = document.getElementById('wallNext');
+  if (next !== null) {
+    next.addEventListener('click', function () {
+      newWallUrl();
+      const cur = document.getElementById('wallImg');
+      const h = document.getElementById('wallHint');
+      if (h !== null) { h.style.display = ''; h.textContent = '正在抽…'; }
+      if (cur !== null) cur.src = wallUrl + '&t=' + String(Date.now());
+      toast('换了一张，上一张找不回来了');
+    });
+  }
+  document.querySelectorAll('.wallStyle').forEach(function (b) {
+    b.addEventListener('click', function () {
+      wallStyle = b.getAttribute('data-style') || 'photo';
+      newWallUrl();
+      render();
+      toast('已切到' + b.textContent + '，换一张看看');
+    });
+  });
+  const dl = document.getElementById('wallDl');
+  if (dl !== null) {
+    dl.addEventListener('click', function () { void downloadWall(); });
+  }
+}
+
+async function downloadWall() {
+  if (wallUrl.length === 0) return;
+  toast('正在准备下载…');
+  try {
+    const res = await fetch(wallUrl, { cache: 'no-store' });
+    if (!res.ok) throw new Error('bad status');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'wallpaper-' + String(wallSeed) + '.jpg';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 8000);
+    toast('已开始下载');
+  } catch (e) {
+    window.open(wallUrl, '_blank');
+    toast('已打开原图，长按保存即可');
+  }
 }
 
 /** 保底来源：Picsum（自带跨域头，电脑没开也能一直抽；固定给 1440×2560 竖屏 2K） */
