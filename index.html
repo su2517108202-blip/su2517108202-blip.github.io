@@ -64,6 +64,9 @@
   article.card .head { display:flex; align-items:flex-start; gap:10px; }
   article.card .spacer { flex:1; }
   article.card h3 { flex:1; font-size:16.5px; margin:2px 0 8px; color:#fff; line-height:1.5; }
+  button.likeBtn { padding:6px 10px; border-radius:9px; font-size:13px; color:var(--dim); }
+  button.likeBtn.on { color:#ff6b81; border-color:#ff6b81; }
+  button.likeBtn span { font-variant-numeric:tabular-nums; }
   article.card .body p { margin:8px 0; }
   article.card .body ul { margin:6px 0; padding-left:20px; }
   article.card .body li { margin:4px 0; color:#d7dde6; }
@@ -95,6 +98,13 @@
 const DATA_URL = "./data.json";
 let days = [], current = 0, tab = 0, secIdx = {};
 let quota = { used: 0, limit: 0 };
+// 点赞：本地记「我点过没」，数字走公共计数器（跨设备统计）
+const COUNTER_BASE = 'https://abacus.jasoncameron.dev';
+const COUNTER_NS = 'dsh-daily-inspiration';
+const likeSync = {};
+let likes = (function () { try { return JSON.parse(localStorage.getItem('dsh-likes') || '{}') || {}; } catch (e) { return {}; } })();
+function saveLikes() { try { localStorage.setItem('dsh-likes', JSON.stringify(likes)); } catch (e) {} }
+function cardKey(day, secIndex, itemIndex) { return (day.date + '-s' + secIndex + '-i' + itemIndex).replace(/[^0-9a-zA-Z-]/g, ''); }
 const copyPool = [];
 function reg(t) { copyPool.push(t); return copyPool.length - 1; }
 
@@ -115,22 +125,25 @@ function body(src) {
   return out.join('');
 }
 
-function card(title, text, extra) {
+function card(title, text, extra, key) {
   const i = reg(text);
+  const like = key !== undefined && key !== null ? '<button class="likeBtn" data-k="' + key + '" title="点赞（跨设备统计）">♥ <span>0</span></button>' : '';
   return '<article class="card"><div class="head">'
     + (title ? '<h3>' + esc(title) + '</h3>' : '<span class="spacer"></span>')
+    + like
     + '<button data-i="' + i + '">复制</button></div>'
     + '<div class="body">' + body(text) + '</div>'
     + (extra || '')
     + '</article>';
 }
 
-/** 二级卡片：挂在选题下面的小故事（默认折叠；底部有「收起」，点卡片外也会自动收回） */
-function subCard(title, text) {
+/** 二级卡片：挂在选题下面的剧本（默认折叠；底部有「收起」，点卡片外也会自动收回） */
+function subCard(title, text, key) {
   const i = reg(text);
+  const like = key !== undefined && key !== null ? '<button class="likeBtn" data-k="' + key + '" title="点赞（跨设备统计）">♥ <span>0</span></button>' : '';
   return '<details class="subcard"><summary>' + (title ? esc(title) + '　' : '') + '点开读</summary>'
     + '<div class="body">' + body(text) + '</div>'
-    + '<div class="subact"><button class="collapseBtn" type="button">收起 ▲</button><button data-i="' + i + '">复制这篇</button></div></details>';
+    + '<div class="subact">' + like + '<button class="collapseBtn" type="button">收起 ▲</button><button data-i="' + i + '">复制这篇</button></div></details>';
 }
 
 function render() {
@@ -151,10 +164,7 @@ function render() {
     .map(function (s, i) { return { s: s, i: i }; })
     .filter(function (e) { return e.s !== storySec; });
   if (tab < 0 || tab >= tabList.length) tab = 0;
-  head.innerHTML = '<div class="daytitle">' + esc(sp.title || day.date) + (day.slot ? '　（第 ' + (day.slot + 1) + ' 版）' : '') + '</div>'
-    + '<div class="meta">热榜 ' + (day.hotCount || 0) + ' 条　·　' + esc(day.push || '') + '　·　' + esc(day.model || '')
-    + (quota.limit > 0 ? '　·　今日额度 ' + quota.used + '/' + quota.limit + (quota.used >= quota.limit ? '（已用完）' : '') : '')
-    + '</div>';
+  head.innerHTML = '<div class="daytitle">' + esc(day.date) + (day.slot ? '　（第 ' + (day.slot + 1) + ' 版）' : '') + '</div>';
   tabsEl.innerHTML = tabList.map(function (e, idx) {
     return '<button data-t="' + idx + '"' + (idx === tab ? ' class="on"' : '') + '>' + esc(e.s.title) + '</button>';
   }).join('');  tabsEl.querySelectorAll('button').forEach(function (b) {
@@ -173,10 +183,12 @@ function render() {
   if (sec && sec.items.length > 0) {
     const showAll = sec.title.indexOf('热榜') >= 0 || sec.title.indexOf('科普') >= 0;
     const isIdeas = sec.title.indexOf('选题') >= 0;
+    const secKey = tabList[tab] !== undefined ? tabList[tab].i : tab;
+    const storyIdx = storySec !== undefined ? sp.sections.indexOf(storySec) : -1;
     const chunk = showAll ? sec.items.length : (isIdeas ? Math.ceil(sec.items.length / 2) : 1);
     const pages = Math.max(1, Math.ceil(sec.items.length / chunk));
     if (showAll) {
-      for (const item of sec.items) html += card(item.title, item.body);
+      for (let i = 0; i < sec.items.length; i++) html += card(sec.items[i].title, sec.items[i].body, '', cardKey(day, secKey, i));
     } else {
       if (!(tab in secIdx) || secIdx[tab] >= pages) secIdx[tab] = 0;
       const start = secIdx[tab] * chunk;
@@ -184,7 +196,12 @@ function render() {
       for (let j = 0; j < slice.length; j++) {
         const item = slice[j];
         const story = isIdeas && storySec !== undefined ? storySec.items[start + j] : undefined;
-        html += card(item.title, item.body, story !== undefined ? subCard(story.title, story.body) : '');
+        html += card(
+          item.title,
+          item.body,
+          story !== undefined ? subCard(story.title, story.body, cardKey(day, storyIdx, start + j)) : '',
+          cardKey(day, secKey, start + j),
+        );
       }
       if (pages > 1) html += '<div class="nextwrap"><button class="nextBtn" data-sec="' + tab + '">下一条 ↻ ' + (secIdx[tab] + 1) + '/' + pages + '</button></div>';
     }
@@ -194,6 +211,13 @@ function render() {
   box.querySelectorAll('button[data-i]').forEach(function (b) {
     b.addEventListener('click', function () { copyText(copyPool[Number(b.getAttribute('data-i'))]); });
   });
+  box.querySelectorAll('button.likeBtn[data-k]').forEach(function (b) {
+    b.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      toggleLike(b.getAttribute('data-k'));
+    });
+  });
+  paintLikes();
   box.querySelectorAll('.collapseBtn').forEach(function (b) {
     b.addEventListener('click', function (ev) {
       ev.stopPropagation();
@@ -236,6 +260,67 @@ function fallback(t) {
   return ok;
 }
 function toast(t) { const el = document.getElementById('toast'); el.textContent = t; el.classList.add('on'); setTimeout(function () { el.classList.remove('on'); }, 1500); }
+
+/** 把当前页面上出现的卡片按钮刷成最新数字（本地缓存优先，随后异步拉服务端） */
+function paintLikes() {
+  const btns = document.querySelectorAll('button.likeBtn[data-k]');
+  btns.forEach(function (b) {
+    const k = b.getAttribute('data-k');
+    const rec = likes[k] || { liked: false, count: 0 };
+    if (rec.liked === true) b.classList.add('on'); else b.classList.remove('on');
+    const span = b.querySelector('span');
+    if (span) span.textContent = String(rec.count || 0);
+  });
+  if (navigator.onLine === false) return;
+  btns.forEach(function (b) { syncLike(b.getAttribute('data-k')); });
+}
+function syncLike(k) {
+  if (k === null || k === undefined || likeSync[k] === true) return;
+  likeSync[k] = true;
+  fetch(COUNTER_BASE + '/get/' + COUNTER_NS + '/' + k, { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (d !== null && typeof d.value === 'number') {
+        const rec = likes[k] || { liked: false, count: 0 };
+        rec.count = d.value;
+        likes[k] = rec;
+        saveLikes();
+        const b = document.querySelector('button.likeBtn[data-k="' + k + '"]');
+        if (b) { const s = b.querySelector('span'); if (s) s.textContent = String(d.value); }
+      }
+    })
+    .catch(function () {})
+    .then(function () { likeSync[k] = false; });
+}
+function toggleLike(k) {
+  if (k === null || k === undefined) return;
+  const rec = likes[k] || { liked: false, count: 0 };
+  if (rec.liked === true) {
+    rec.liked = false;
+    likes[k] = rec;
+    saveLikes();
+    paintLikes();
+    toast('已取消（统计里的数不会掉）');
+    return;
+  }
+  rec.liked = true;
+  rec.count = (rec.count || 0) + 1;
+  likes[k] = rec;
+  saveLikes();
+  paintLikes();
+  toast('已点赞 ♥');
+  fetch(COUNTER_BASE + '/hit/' + COUNTER_NS + '/' + k, { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (d !== null && typeof d.value === 'number') {
+        rec.count = d.value;
+        likes[k] = rec;
+        saveLikes();
+        paintLikes();
+      }
+    })
+    .catch(function () { toast('离线：只记在本地'); });
+}
 
 /** 今日额度用完 → 把「刷新」置灰，别人点不了（重新打开页面仍能看到最新内容） */
 function updateRefreshButton() {
@@ -325,7 +410,7 @@ async function load(manual) {
     picker.innerHTML = days.map(function (d, i) { return '<option value="' + i + '">' + d.date + (d.slot ? '　v' + (d.slot + 1) : '') + '</option>'; }).join('');
     picker.value = String(current);
     render();
-    document.getElementById('foot').innerHTML = '数据每天自动更新　·　' + esc(location.host + location.pathname);
+    document.getElementById('foot').innerHTML = '';
   } catch (e) {
     document.getElementById('content').innerHTML = '<div class="empty">读取失败：' + esc(String(e)) + '</div>';
   }
