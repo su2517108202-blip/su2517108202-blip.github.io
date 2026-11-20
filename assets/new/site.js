@@ -37,6 +37,8 @@ function syncPlay() {
 }
 
 function beginPlayback({reset = false} = {}) {
+  const request = new CustomEvent("continuity:play-request", {cancelable: true, detail: {reset}});
+  if (!player.dispatchEvent(request)) return;
   if (reset || player.ended) jumpTo(0);
   player.play().then(() => {
     status.textContent = "基于静帧剪辑 · 无声预演";
@@ -57,6 +59,11 @@ function jumpTo(time) {
   syncPlayer();
 }
 
+player.addEventListener("continuity:take", (event) => {
+  reel[1].detail = event.detail.detail;
+  currentShot = -1;
+  syncPlayer();
+});
 player.addEventListener("loadedmetadata", () => {
   seek.max = player.duration;
   if (pendingSeek !== undefined) jumpTo(pendingSeek);

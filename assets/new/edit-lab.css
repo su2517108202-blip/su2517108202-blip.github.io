@@ -1,0 +1,162 @@
+.cut-lab {
+  --cut-line: #506171;
+  --cut-paper: #f8ead7;
+  display: grid;
+  align-content:start;
+  gap: clamp(14px, 1.55vw, 21px);
+  border: 1px solid var(--cut-line);
+  border-top: 3px solid #dd7158;
+  padding: clamp(14px, 1.8vw, 25px);
+  margin: 0;
+  background: #192635;
+  color: var(--cut-paper);
+  scroll-margin-top: 20px;
+}
+.cut-lab[hidden] { display:none; }
+.cut-heading {
+  display:grid;
+  grid-template-columns:1fr;
+  gap:9px;
+}
+.cut-heading .eyebrow { color: var(--flare); }
+.cut-heading h3 {
+  margin-top:8px;
+  color:var(--cut-paper);
+  font:800 clamp(27px,3vw,42px)/1.07 var(--serif);
+  letter-spacing:-.068em;
+}
+.cut-heading > p {
+  color:#d9ddda;
+  max-width:27em;
+  justify-self:start;
+  font-size:clamp(13px,1.1vw,15px);
+}
+.cut-options {
+  border:0;
+  min-width:0;
+  padding:0;
+  margin:0;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:clamp(8px,1.7vw,22px);
+}
+.cut-options legend {
+  padding:0;
+  margin-bottom:8px;
+  color:#e7d9c9;
+  font-size:12px;
+}
+.cut-option {
+  display:block;
+  position:relative;
+  min-width:0;
+  border:1px solid #627080;
+  cursor:pointer;
+  background:#101a25;
+}
+.cut-option:hover { border-color:var(--cut-paper); }
+.cut-option:has(input:checked) {
+  border-color:var(--flare);
+  outline:1px solid var(--flare);
+  outline-offset:-1px;
+}
+.cut-option:has(input:focus-visible) { outline:2px solid var(--flare); outline-offset:4px; }
+.cut-option > input {
+  position:absolute;
+  z-index:1;
+  top:8px;
+  right:8px;
+  width:20px;
+  height:20px;
+  margin:0;
+  cursor:pointer;
+  accent-color:#ffa489;
+}
+.cut-option img {
+  display:block;
+  width:100%;
+  height:auto;
+  aspect-ratio:16/9;
+  object-fit:cover;
+}
+.cut-option-text {
+  display:flex;
+  flex-direction:column;
+  align-items:start;
+  gap:3px 8px;
+  padding:9px 10px;
+  color:#f8ecd9;
+  font-size:clamp(13px,1.25vw,16px);
+}
+.cut-option-text small { color:#cfd7dc; font-size:clamp(11px,1vw,13px); }
+.cut-option:has(input:checked) .cut-option-text b { color:var(--flare); }
+.cut-result {
+  display:grid;
+  grid-template-columns:1fr;
+  gap:12px;
+}
+.cut-route {
+  position:relative;
+  list-style:none;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:4px;
+  padding:0;
+  margin:0;
+  font-size:clamp(12px,1.15vw,16px);
+}
+.cut-route li {
+  padding:5px clamp(4px,1.1vw,14px) 7px;
+  border-top:2px solid #536577;
+  background:#121d2a;
+}
+.cut-route li span { display:block; color:#ccd1d4; font-size:11px; }
+.cut-route li[data-editable] { border-color:#dc6d51; }
+.cut-route li[data-editable] span { color:var(--flare); }
+.cut-route li[data-current] { background:#453334; box-shadow:inset 0 0 0 1px #d98268; }
+.cut-actions { display:grid; gap:5px; }
+.cut-play {
+  justify-self:start;
+  display:inline-flex;
+  justify-content:center;
+  align-items:center;
+  gap:13px;
+  border:1px solid #fab299;
+  border-radius:3px;
+  padding:8px 12px;
+  min-height:40px;
+  color:#1e2228;
+  background:#ffd0b9;
+  cursor:pointer;
+  font-weight:740;
+  font-size:14px;
+}
+.cut-play:hover { background:#fff0dc; }
+.cut-status { color:#e2dbd6; font-size:12px; }
+.cut-lab[data-loading] .cut-option:has(input:checked) img { opacity:.77; }
+.cut-lab[data-playing] .cut-play { background:#ffe8cd; }
+@media(max-width:660px) {
+  .cut-lab { gap:15px; }
+  .cut-heading,.cut-result { grid-template-columns:1fr; }
+  .cut-heading > p { justify-self:start; max-width:25em; }
+  .cut-option-text { align-items:start; flex-direction:column; padding:7px 5px; }
+  .cut-option > input { width:18px; height:18px; top:5px; right:5px; }
+  .cut-actions { grid-template-columns:auto 1fr; align-items:center; gap:8px; }
+  .cut-play { gap:5px; padding-inline:8px; font-size:12px; }
+  .cut-status { font-size:11px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .cut-lab,.cut-option,.cut-play,.cut-route li { transition:none !important; }
+}
+
+.cut-retry {
+  justify-self:start;
+  padding:3px 0;
+  border:0;
+  border-bottom:1px solid currentColor;
+  color:var(--flare);
+  background:transparent;
+  font:inherit;
+  font-size:12px;
+}
+.cut-retry[hidden] { display:none; }

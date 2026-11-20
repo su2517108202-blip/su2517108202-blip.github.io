@@ -12,12 +12,17 @@
   <meta property="og:image" content="https://www.ss0100.com/assets/new/cover.webp">
   <link rel="canonical" href="https://www.ss0100.com/">
   <link rel="icon" href="assets/new/mark.png" type="image/png">
-  <link rel="stylesheet" href="assets/new/site.css?v=motion">
+  <link rel="stylesheet" href="assets/new/site.css?v=continuity">
   <link rel="stylesheet" href="assets/new/scene-motion.css">
   <link rel="stylesheet" href="assets/new/reel-motion.css">
-  <script defer src="assets/new/site.js?v=motion"></script>
+  <link rel="stylesheet" href="assets/new/umbrella-relay.css">
+  <link rel="stylesheet" href="assets/new/edit-lab.css">
+  <link rel="stylesheet" href="assets/new/screening-deck.css">
+  <script defer src="assets/new/site.js?v=continuity"></script>
   <script defer src="assets/new/scene-motion.js"></script>
-  <script defer src="assets/new/reel-motion.js"></script>
+  <script defer src="assets/new/reel-motion.js?v=continuity"></script>
+  <script defer src="assets/new/umbrella-relay.js"></script>
+  <script defer src="assets/new/edit-lab.js"></script>
   <title>心语 AI · 漫剧制作工作室</title>
 </head>
 <body id="top">
@@ -43,7 +48,10 @@
           <p class="eyebrow">本机漫剧制作工作室</p>
           <h1 id="hero-title"><span>让故事，</span><span>一镜一镜发生。</span></h1>
           <p>从剧本、人物到分镜和成片。<br class="wide">用心语 AI 在同一个项目里逐镜审看、确认和制作。</p>
-          <a class="pill hero-play" data-start href="#preview"><span class="play-icon" aria-hidden="true"></span>看 14 秒分镜预演</a>
+          <div class="hero-actions">
+            <a class="pill hero-play" href="#screening">跟红伞进入分镜 <span aria-hidden="true">↓</span></a>
+            <a class="hero-watch" data-start href="#preview"><span class="play-icon" aria-hidden="true"></span>播放预演</a>
+          </div>
         </div>
         <div class="hero-caption">
           <span>《潮声到站》</span><small>官网概念画面</small>
@@ -56,21 +64,65 @@
       <div class="red-intro">
         <div class="wrap story-intro">
           <div><p class="eyebrow">分镜预演 · 潮声到站</p><h2 id="screening-title">一把红伞。<br>四个镜头。</h2></div>
-          <p>末班船即将开航。先看她跨进渡口，再看她收伞、望江、登船。同一个人物和道具，在不同景别里把这场戏接起来。</p>
+          <div class="relay-aside">
+            <a class="relay-shot" href="#cut-editor">
+              <span class="relay-still"><img src="assets/new/umbrella.webp" width="832" height="468" alt="候船楼里，她低头收起红伞"></span>
+              <span class="relay-caption"><span><small>02 · 00:04–00:07</small><strong>收起红伞</strong></span><b>试换这镜 <span aria-hidden="true">↘</span></b></span>
+            </a>
+            <p>她撑伞抵达渡口，在候船楼收起伞，又隔窗望向江心。试把中间的收伞镜头换个景别，看同一场戏的节奏怎么变。</p>
+          </div>
         </div>
       </div>
       <div class="wrap theater" id="preview">
-        <div class="projection">
-          <video id="animatic" width="960" height="540" controls muted playsinline preload="metadata" poster="assets/new/arrival.webp" aria-label="潮声到站，无声分镜预演">
-            <source src="assets/new/tide-animatic.mp4" type="video/mp4">
-          </video>
-          <button id="screen-play" class="screen-play" type="button" aria-label="播放分镜预演" hidden><span class="play-icon" aria-hidden="true"></span></button>
-        </div>
-        <div class="transport" id="transport" hidden>
-          <button type="button" id="play" class="control">播放</button>
-          <span id="elapsed" class="timecode">00:00</span>
-          <input type="range" id="seek" min="0" max="14" step="0.01" value="0" aria-label="定位分镜预演时间">
-          <span class="timecode">00:14</span>
+        <div class="screening-deck">
+          <div class="screening-player">
+            <div class="projection">
+              <video id="animatic" width="960" height="540" controls muted playsinline preload="metadata" poster="assets/new/arrival.webp" aria-label="潮声到站，无声分镜预演">
+                <source src="assets/new/tide-animatic.mp4" type="video/mp4">
+              </video>
+              <button id="screen-play" class="screen-play" type="button" aria-label="播放分镜预演" hidden><span class="play-icon" aria-hidden="true"></span></button>
+            </div>
+            <div class="transport" id="transport" hidden>
+              <button type="button" id="play" class="control">播放</button>
+              <span id="elapsed" class="timecode">00:00</span>
+              <input type="range" id="seek" min="0" max="14" step="0.01" value="0" aria-label="定位分镜预演时间">
+              <span class="timecode">00:14</span>
+            </div>
+          </div>
+        <section class="cut-lab" id="cut-editor" aria-labelledby="cut-title" data-take="a" hidden>
+          <div class="cut-heading">
+            <div>
+              <p class="eyebrow">剪辑台 · 第二镜</p>
+              <h3 id="cut-title">换个景别，接着看。</h3>
+            </div>
+            <p>中景看清她在哪儿收伞，近景看清她怎么收。选一版，再连看抵达、收伞和望江。</p>
+          </div>
+          <fieldset class="cut-options">
+            <legend>「收起红伞」的镜头版本</legend>
+            <label class="cut-option">
+              <input type="radio" name="umbrella-take" value="a" checked>
+              <img width="832" height="468" loading="lazy" src="assets/new/umbrella.webp" alt="">
+              <span class="cut-option-text"><b>A · 中景</b><small>人物与候船楼</small></span>
+            </label>
+            <label class="cut-option">
+              <input type="radio" name="umbrella-take" value="b">
+              <img width="832" height="468" loading="lazy" src="assets/new/umbrella-detail.webp" alt="">
+              <span class="cut-option-text"><b>B · 近景</b><small>同一画面裁出手与伞</small></span>
+            </label>
+          </fieldset>
+          <div class="cut-result">
+            <ol class="cut-route" aria-label="三镜衔接">
+              <li data-cut-phase="0"><span>前一镜</span><b>抵达渡口</b></li>
+              <li data-cut-phase="1" data-editable><span id="cut-take-label">A 版中景</span><b>收起红伞</b></li>
+              <li data-cut-phase="2"><span>后一镜</span><b>隔窗望江</b></li>
+            </ol>
+            <div class="cut-actions">
+              <button type="button" id="cut-play" class="cut-play">播放三镜衔接 <span aria-hidden="true">↗</span></button>
+              <p id="cut-status" class="cut-status" role="status">已选 A 版 · 前后两镜固定</p>
+              <button type="button" id="cut-retry" class="cut-retry" hidden>重试加载</button>
+            </div>
+          </div>
+        </section>
         </div>
         <div class="reel-notes">
           <p id="frame-detail">远景 · 她撑着红伞走到候船楼外。</p>
@@ -127,6 +179,14 @@
       </div>
     </section>
   </main>
+
+  <div class="relay-flight" aria-hidden="true" hidden>
+    <div class="relay-object">
+      <div class="relay-canopy"></div>
+      <img src="assets/new/umbrella.webp" width="832" height="468" alt="">
+      <div class="relay-frame"></div>
+    </div>
+  </div>
 
   <footer class="wrap tail">
     <div class="tail-top">

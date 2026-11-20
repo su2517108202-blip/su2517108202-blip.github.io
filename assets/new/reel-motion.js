@@ -10,9 +10,9 @@
     button,
     time: Number(button.querySelector("time")?.dateTime.match(/^PT([\d.]+)S$/)?.[1]),
     name: button.querySelector("strong")?.textContent ?? "",
-    src: button.querySelector("img")?.src,
+    image: button.querySelector("img"),
   }));
-  if (!chapters.length || chapters.some(({time, src}) => !Number.isFinite(time) || !src)) return;
+  if (!chapters.length || chapters.some(({time, image}) => !Number.isFinite(time) || !image)) return;
 
   const theater = seek.closest(".theater") || seek.closest(".transport");
   const track = document.createElement("div");
@@ -76,9 +76,9 @@
       previewChapter?.button.removeAttribute("data-reel-preview");
       previewChapter = chapter;
       chapter.button.setAttribute("data-reel-preview", "");
-      previewImage.src = chapter.src;
       title.textContent = chapter.name;
     }
+    if (previewImage.src !== chapter.image.src) previewImage.src = chapter.image.src;
     timecode.textContent = "00:" + String(Math.floor(time)).padStart(2, "0");
 
     const rail = seek.getBoundingClientRect();
