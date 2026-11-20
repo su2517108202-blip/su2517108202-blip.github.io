@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101923">
+  <meta name="description" content="在已安装的心语 AI 本机版里，从导入原稿开始制作一集，核对角色、分镜和候选画面，最终导出成片。">
+  <title>本机制作指南 · 心语 AI</title>
+  <link rel="canonical" href="https://www.ss0100.com/guide.html">
+  <link rel="icon" href="assets/new/mark.png" type="image/png">
+  <link rel="stylesheet" href="assets/new/site.css">
+  <link rel="stylesheet" href="assets/new/guide.css">
+</head>
+<body class="guide-body">
+  <a class="guide-skip" href="#guide-main">跳到制作指南</a>
+  <header class="guide-header" id="top">
+    <div class="guide-shell guide-header-inner">
+      <a class="guide-brand" href="index.html" aria-label="返回心语 AI 首页"><img class="guide-mark" src="assets/new/mark.png" width="23" height="23" alt="">心语 AI</a>
+      <a class="guide-back" href="index.html">返回首页 <span aria-hidden="true">↗</span></a>
+    </div>
+  </header>
+
+  <main id="guide-main" tabindex="-1">
+    <section class="guide-hero" aria-labelledby="guide-heading">
+      <div class="guide-shell guide-hero-grid">
+        <div>
+          <h1 id="guide-heading">本机制作指南</h1>
+          <p>把一段故事做成一集。从原稿入场，经过资产、分镜与画面选用，直到视频导出。</p>
+        </div>
+        <div class="guide-hero-aside">
+          <p>打开已安装的心语 AI 本机版，可以沿着这份指南逐步操作。</p>
+          <a href="#prepare">从准备工作开始 <span aria-hidden="true">↓</span></a>
+        </div>
+      </div>
+    </section>
+
+    <div class="guide-sheet">
+      <div class="guide-shell guide-layout">
+        <aside class="guide-index">
+          <nav aria-labelledby="guide-index-title">
+            <h2 id="guide-index-title">制作步骤</h2>
+            <ol>
+              <li><a href="#prepare"><span>00</span> 准备工作</a></li>
+              <li><a href="#story"><span>01</span> 故事蓝本</a></li>
+              <li><a href="#assets"><span>02</span> 资产设定</a></li>
+              <li><a href="#boards"><span>03</span> 分镜编排</a></li>
+              <li><a href="#images"><span>04</span> 分镜成图</a></li>
+              <li><a href="#video"><span>05</span> 视频生成</a></li>
+            </ol>
+          </nav>
+        </aside>
+
+        <div class="guide-steps">
+          <section id="prepare" class="guide-step" tabindex="-1" aria-labelledby="prepare-title">
+            <span class="guide-step-number" aria-hidden="true">00</span>
+            <div class="guide-step-content">
+              <h2 id="prepare-title">准备工作</h2>
+              <p>启动已经安装的本机版，进入工作室。先打开<strong>模型连接</strong>，配置自己使用的服务商 API Key，检查连接状态。按计划使用的功能准备文字、图片或视频模型。</p>
+              <p>首次调用前核对模型、费用来源和本次调用范围。费用按你使用的服务商与账号实际结算。准备做完整 MP4 时，本机需要 <code>FFmpeg</code> 和 <code>ffprobe</code>。</p>
+              <div class="guide-note">先用一段短稿确认文字与图片流程，需要成片时再启动视频调用。</div>
+            </div>
+          </section>
+
+          <section id="story" class="guide-step" tabindex="-1" aria-labelledby="story-title">
+            <span class="guide-step-number" aria-hidden="true">01</span>
+            <div class="guide-step-content">
+              <h2 id="story-title">故事蓝本</h2>
+              <p>新建项目并进入<strong>故事蓝本</strong>。粘贴原文，或导入 <code>.txt</code>、<code>.md</code> 文件。采用并保存编辑结果，再生成或更新本集剧本。</p>
+              <p class="guide-check"><strong>继续前确认</strong> 界面上的分场剧本与当前原文一致，保留了这集的主要行动、对白和结局。</p>
+            </div>
+          </section>
+
+          <section id="assets" class="guide-step" tabindex="-1" aria-labelledby="assets-title">
+            <span class="guide-step-number" aria-hidden="true">02</span>
+            <div class="guide-step-content">
+              <h2 id="assets-title">资产设定</h2>
+              <p>打开<strong>资产设定</strong>，按本集实用需求核对角色、场景和道具。查看参考图或生成候选，放大或并排比较后，选用符合当前设定的版本。</p>
+              <p class="guide-check"><strong>继续前确认</strong> 主要角色能在各场辨认，跨镜头重复出现的衣着、道具和场景沿用同一设定。</p>
+            </div>
+          </section>
+
+          <section id="boards" class="guide-step" tabindex="-1" aria-labelledby="boards-title">
+            <span class="guide-step-number" aria-hidden="true">03</span>
+            <div class="guide-step-content">
+              <h2 id="boards-title">分镜编排</h2>
+              <p>按分场结果建立镜头计划。打开各片段核对顺序、时码、动作和对应资产，调整需要细化的片段并确认。</p>
+              <p class="guide-check"><strong>继续前确认</strong> 从开场到收尾，镜头顺序能讲清发生了什么，段与段之间的时间和动作接得上。</p>
+            </div>
+          </section>
+
+          <section id="images" class="guide-step" tabindex="-1" aria-labelledby="images-title">
+            <span class="guide-step-number" aria-hidden="true">04</span>
+            <div class="guide-step-content">
+              <h2 id="images-title">分镜成图</h2>
+              <p>在<strong>分镜成图</strong>打开已确认的片段并生成候选画面。检查人物、机位和关键道具，用「选用」确定要带入视频的画面。</p>
+              <p class="guide-check"><strong>继续前确认</strong> 视频步骤读取的是当前选图。若更换分镜或选图，先更新视频提示再提交。</p>
+            </div>
+          </section>
+
+          <section id="video" class="guide-step" tabindex="-1" aria-labelledby="video-title">
+            <span class="guide-step-number" aria-hidden="true">05</span>
+            <div class="guide-step-content">
+              <h2 id="video-title">视频生成与导出</h2>
+              <p>在<strong>视频生成</strong>核对当前选图与视频提示，选定视频模型并确认本次费用及调用上限。生成片段后逐段回放，检查动作、对白和承接，再确认选用。</p>
+              <p>若要由连续制作交付整集，在开工时选择「完整 MP4」，确认图文及视频模型和各项上限。流程完成后下载合成的 MP4，实际打开一遍，核对段落顺序、声音与字幕。</p>
+              <p class="guide-check"><strong>遇到受理状态不明</strong> 先查看原任务，确认状态和已保存结果后再决定是否补做。</p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <section class="guide-end" aria-labelledby="guide-end-title">
+      <div class="guide-shell guide-end-inner">
+        <div>
+          <h2 id="guide-end-title">看看镜头怎样接成一集。</h2>
+          <p>回到《潮声到站》的分镜预演，对照镜头顺序和每一段的画面。</p>
+        </div>
+        <a href="index.html#preview">观看分镜预演 <span aria-hidden="true">↗</span></a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="guide-footer">
+    <div class="guide-shell guide-footer-inner">
+      <a class="guide-brand" href="index.html" aria-label="返回心语 AI 首页"><img class="guide-mark" src="assets/new/mark.png" width="23" height="23" alt="">心语 AI</a>
+      <a class="guide-back" href="#top">返回页首 <span aria-hidden="true">↑</span></a>
+    </div>
+  </footer>
+</body>
+</html>
