@@ -1,0 +1,154 @@
+.hero {
+  --camera-x: 0px;
+  --camera-y: 0px;
+  --rain-cut: 0%;
+}
+
+.hero-art img {
+  transform: scale(1.105) translate3d(var(--camera-x),var(--camera-y),0);
+}
+
+.weather-rain {
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  pointer-events:none;
+  mix-blend-mode:screen;
+}
+
+.viewfinder {
+  position:absolute;
+  inset:104px 3.8% 27px;
+  z-index:1;
+  pointer-events:none;
+  opacity:.68;
+  background:
+    linear-gradient(#ecdcc7,#ecdcc7) left top/24px 1px,
+    linear-gradient(#ecdcc7,#ecdcc7) left top/1px 16px,
+    linear-gradient(#ecdcc7,#ecdcc7) right top/24px 1px,
+    linear-gradient(#ecdcc7,#ecdcc7) right top/1px 16px,
+    linear-gradient(#ecdcc7,#ecdcc7) left bottom/24px 1px,
+    linear-gradient(#ecdcc7,#ecdcc7) left bottom/1px 16px,
+    linear-gradient(#ecdcc7,#ecdcc7) right bottom/24px 1px,
+    linear-gradient(#ecdcc7,#ecdcc7) right bottom/1px 16px;
+  background-repeat:no-repeat;
+  transform:scale(var(--finder-scale,1));
+}
+
+.hero-inner {z-index:2}
+.hero-copy {animation:none}
+.hero h1 span {display:block}
+.hero[data-scene-intro] h1 span {
+  animation:scene-title-in 850ms var(--ease) backwards;
+}
+.hero[data-scene-intro] h1 span + span {animation-delay:140ms}
+[data-scene-intro] .hero-copy > p:first-child,
+[data-scene-intro] .hero-copy > p:last-of-type,
+[data-scene-intro] .hero-play {
+  animation:scene-light-in 720ms var(--ease) 200ms backwards;
+}
+[data-scene-intro] .hero-play {animation-delay:330ms}
+[data-scene-intro] .viewfinder {animation:lens-in 1.15s var(--ease) backwards}
+@keyframes scene-title-in {
+  from{clip-path:inset(100% 0 0);transform:translateY(36px);opacity:.48}
+  to{clip-path:inset(0);transform:none;opacity:1}
+}
+@keyframes scene-light-in {
+  from{opacity:0;transform:translateY(13px)}
+  to{opacity:1;transform:none}
+}
+@keyframes lens-in {
+  from{opacity:0;scale:1.075}
+  to{opacity:.68;scale:1}
+}
+
+.hero::after {
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:-1px;
+  height:180px;
+  z-index:1;
+  background:var(--red);
+  clip-path:polygon(0 100%,100% calc(100% - var(--rain-cut)),100% 100%);
+  pointer-events:none;
+}
+.red-intro::before {display:none}
+
+#scene-motion-toggle {
+  margin-top:8px;
+  min-height:38px;
+  min-width:106px;
+  padding:4px 10px;
+  color:#fff1e4;
+  background:#111d2de8;
+  border:1px solid #d2c4b884;
+  border-radius:3px;
+  font-size:12px;
+  transition:border-color .18s,background .18s;
+}
+#scene-motion-toggle:hover {background:#263a4e;border-color:#ffbb9e}
+
+.projection {
+  --curtain-left:-100%;
+  --curtain-right:100%;
+}
+.projection::before,.projection::after {
+  content:"";
+  position:absolute;
+  z-index:2;
+  top:0;
+  bottom:0;
+  width:17%;
+  background:linear-gradient(90deg,#101923,#1c2c3bea);
+  box-shadow:0 0 28px #040a10b5;
+  pointer-events:none;
+}
+.projection::before {left:0;transform:translateX(var(--curtain-left));border-right:1px solid #fee8c876}
+.projection::after {right:0;transform:translateX(var(--curtain-right));border-left:1px solid #fee8c876}
+.projection:not([data-curtain])::before,.projection:not([data-curtain])::after {display:none}
+.screen-play {z-index:3}
+
+.harbor-mist {
+  position:absolute;
+  z-index:-1;
+  inset:0 -14%;
+  pointer-events:none;
+  background:
+    radial-gradient(ellipse 37% 15% at 67% 52%,#e4ecf26b,transparent 100%),
+    radial-gradient(ellipse 42% 13% at 53% 63%,#b7d1dc51,transparent 100%);
+  opacity:.45;
+  mix-blend-mode:screen;
+  animation:harbor-drift 8s ease-in-out infinite alternate;
+  animation-play-state:paused;
+}
+.closing-frame[data-weather-live] .harbor-mist {animation-play-state:running}
+@keyframes harbor-drift {
+  from{transform:translate3d(-10%,1%,0) scaleX(.95);opacity:.27}
+  to{transform:translate3d(12%,-2%,0) scaleX(1.18);opacity:.7}
+}
+.tail-mark {overflow:hidden}
+.tail-mark > span {display:block;transform:translateY(var(--roll-up,0px));opacity:var(--roll-opacity,1)}
+
+@media(max-width:660px){
+  .viewfinder{inset:90px 12px 11px}
+  .hero::after{height:90px}
+  .hero-inner{padding-bottom:111px}
+  .hero-caption{bottom:15px;right:2px;text-shadow:0 1px 6px #020916}
+  .hero-caption span{font-size:15px}
+  #scene-motion-toggle{min-height:34px;margin-top:5px;padding:3px 7px;font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){
+  .weather-rain,.harbor-mist,#scene-motion-toggle,.hero::after,.projection::after,.projection::before{display:none!important}
+  .hero-art img,.tail-mark > span{transform:none}
+  .tail-mark > span{opacity:1}
+  .viewfinder{opacity:.55;transform:none}
+  .hero-inner{padding-bottom:clamp(65px,8vw,116px)}
+}
+@media(max-width:660px) and (prefers-reduced-motion:reduce){
+  .hero-inner{padding-bottom:76px}
+}
+
+body[data-scene-motion="still"] .story-intro > div {animation:none}

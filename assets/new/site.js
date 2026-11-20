@@ -129,7 +129,8 @@ const panel = document.querySelector("#stage-panel");
 const stageTitle = document.querySelector("#stage-title");
 const stageText = document.querySelector("#stage-text");
 const stageOpen = document.querySelector("#stage-open");
-const stagePreview = document.querySelector("#stage-preview");
+const stageLoadStatus = document.querySelector("#stage-load-status");
+let stagePreview = document.querySelector("#stage-preview");
 const dialog = document.querySelector("#stage-dialog");
 const dialogTitle = document.querySelector("#dialog-title");
 const dialogPreview = document.querySelector("#dialog-preview");
@@ -139,12 +140,13 @@ const base = new URL(".", document.currentScript.src);
 const images = new Map();
 let stage = 0;
 let stageRequest = 0;
+let stageReveal;
 
 function prepare(file) {
   if (!images.has(file)) {
     const image = new Image();
     image.src = new URL(file, base).href;
-    images.set(file, image.decode().then(() => image.src).catch(() => {
+    images.set(file, image.decode().then(() => image).catch(() => {
       images.delete(file);
       return null;
     }));
@@ -152,20 +154,77 @@ function prepare(file) {
   return images.get(file);
 }
 
+function finishStageReveal() {
+  if (!stageReveal) return;
+  const reveal = stageReveal;
+  stageReveal = undefined;
+  for (const animation of reveal.animations) animation.cancel();
+  reveal.previous.remove();
+  reveal.edge.remove();
+}
+
+function showStageImage(image, alt, forward) {
+  finishStageReveal();
+  const previous = stagePreview;
+  previous.removeAttribute("id");
+  image.id = "stage-preview";
+  image.width = 1280;
+  image.height = 800;
+  image.alt = alt;
+  image.classList.remove("stage-outgoing");
+  image.removeAttribute("aria-hidden");
+  previous.after(image);
+  stagePreview = image;
+
+  if (motion.matches || !previous.naturalWidth || typeof image.animate !== "function") {
+    previous.remove();
+    return;
+  }
+
+  previous.classList.add("stage-outgoing");
+  previous.setAttribute("aria-hidden", "true");
+  const edge = document.createElement("i");
+  edge.className = "stage-edge";
+  edge.setAttribute("aria-hidden", "true");
+  image.after(edge);
+
+  const timing = { duration: 480, easing: "cubic-bezier(.18,.73,.22,1)", fill: "both" };
+  const clip = forward ? "inset(0 100% 0 0)" : "inset(0 0 0 100%)";
+  const positions = forward ? ["0%", "100%"] : ["100%", "0%"];
+  const animations = [
+    image.animate([{ clipPath: clip }, { clipPath: "inset(0)" }], timing),
+    edge.animate(positions.map((x) => ({ transform: `translateX(${x})` })), timing),
+  ];
+  const reveal = { previous, edge, animations };
+  stageReveal = reveal;
+  Promise.allSettled(animations.map((animation) => animation.finished)).then(() => {
+    if (stageReveal === reveal) finishStageReveal();
+  });
+}
+
+motion.addEventListener("change", () => {
+  if (motion.matches) finishStageReveal();
+});
+
 async function chooseStep(index, focus = false) {
   const request = ++stageRequest;
   const step = steps[index];
+  stageLoadStatus.textContent = "";
   if (focus) tabs[index].focus();
   if (index === stage) {
     stageOpen.removeAttribute("aria-busy");
     return;
   }
   stageOpen.setAttribute("aria-busy", "true");
-  const src = await prepare(step.image);
+  const image = await prepare(step.image);
   if (request !== stageRequest) return;
   stageOpen.removeAttribute("aria-busy");
-  if (!src) return;
+  if (!image) {
+    stageLoadStatus.textContent = "实屏暂时无法加载，再选一次该步骤即可重试。";
+    return;
+  }
 
+  const forward = index > stage;
   stage = index;
   for (const [position, tab] of tabs.entries()) {
     tab.tabIndex = position === index ? 0 : -1;
@@ -174,14 +233,7 @@ async function chooseStep(index, focus = false) {
   panel.setAttribute("aria-labelledby", tabs[index].id);
   stageTitle.textContent = step.title;
   stageText.textContent = step.text;
-  stagePreview.src = src;
-  stagePreview.alt = step.alt;
-
-  stageOpen.removeAttribute("data-changing");
-  if (!motion.matches) {
-    stageOpen.getBoundingClientRect();
-    stageOpen.setAttribute("data-changing", "");
-  }
+  showStageImage(image, step.alt, forward);
 }
 
 tabs.forEach((tab, index) => {
@@ -229,27 +281,3 @@ if ("IntersectionObserver" in window) {
   }, {rootMargin:"300px"});
   observer.observe(desk);
 }
-
-const cover = document.querySelector(".hero");
-const closeFrame = document.querySelector(".closing-frame");
-let scrollFrame;
-
-function positionArt() {
-  scrollFrame = undefined;
-  if (motion.matches) return;
-  const rect = cover.getBoundingClientRect();
-  if (rect.bottom > 0) cover.style.setProperty("--art-shift", Math.min(25, -rect.top * .07) + "px");
-  const end = closeFrame.getBoundingClientRect();
-  if (end.top < innerHeight && end.bottom > 0) {
-    const shift = Math.max(-24, Math.min(24, (innerHeight / 2 - (end.top + end.height / 2)) * .065));
-    closeFrame.style.setProperty("--out-shift", shift + "px");
-  }
-}
-
-function queuePosition() {
-  if (scrollFrame === undefined) scrollFrame = requestAnimationFrame(positionArt);
-}
-addEventListener("scroll", queuePosition, {passive:true});
-addEventListener("resize", queuePosition);
-motion.addEventListener("change", queuePosition);
-queuePosition();
