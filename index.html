@@ -12,17 +12,18 @@
   <meta property="og:image" content="https://www.ss0100.com/assets/new/cover.webp">
   <link rel="canonical" href="https://www.ss0100.com/">
   <link rel="icon" href="assets/new/mark.png" type="image/png">
-  <link rel="stylesheet" href="assets/new/site.css?v=continuity">
-  <link rel="stylesheet" href="assets/new/scene-motion.css">
+  <link rel="stylesheet" href="assets/new/site.css?v=polish">
+  <link rel="stylesheet" href="assets/new/scene-motion.css?v=polish">
   <link rel="stylesheet" href="assets/new/reel-motion.css">
-  <link rel="stylesheet" href="assets/new/umbrella-relay.css">
-  <link rel="stylesheet" href="assets/new/edit-lab.css">
-  <link rel="stylesheet" href="assets/new/screening-deck.css">
-  <script defer src="assets/new/site.js?v=continuity"></script>
-  <script defer src="assets/new/scene-motion.js"></script>
+  <link rel="stylesheet" href="assets/new/umbrella-relay.css?v=polish">
+  <link rel="stylesheet" href="assets/new/edit-lab.css?v=polish">
+  <link rel="stylesheet" href="assets/new/screening-deck.css?v=polish">
+  <script defer src="assets/new/site.js?v=polish"></script>
+  <script defer src="assets/new/scene-motion.js?v=polish"></script>
   <script defer src="assets/new/reel-motion.js?v=continuity"></script>
-  <script defer src="assets/new/umbrella-relay.js"></script>
-  <script defer src="assets/new/edit-lab.js"></script>
+  <script defer src="assets/new/umbrella-relay.js?v=polish"></script>
+  <script defer src="assets/new/edit-lab.js?v=polish"></script>
+  <script defer src="assets/new/framing-demo.js"></script>
   <title>心语 AI · 漫剧制作工作室</title>
 </head>
 <body id="top">
@@ -40,7 +41,7 @@
     <section class="hero" aria-labelledby="hero-title">
       <div class="hero-art">
         <img src="assets/new/cover.webp" width="1672" height="941" fetchpriority="high" alt="">
-        <canvas class="weather-rain" width="1" height="1" aria-hidden="true"></canvas>
+        <div class="weather-rain" aria-hidden="true"></div>
       </div>
       <div class="viewfinder" aria-hidden="true"></div>
       <div class="wrap hero-inner">
@@ -80,59 +81,71 @@
               <video id="animatic" width="960" height="540" controls muted playsinline preload="metadata" poster="assets/new/arrival.webp" aria-label="潮声到站，无声分镜预演">
                 <source src="assets/new/tide-animatic.mp4" type="video/mp4">
               </video>
+              <canvas id="switch-frame" width="960" height="540" aria-hidden="true" hidden></canvas>
               <button id="screen-play" class="screen-play" type="button" aria-label="播放分镜预演" hidden><span class="play-icon" aria-hidden="true"></span></button>
             </div>
             <div class="transport" id="transport" hidden>
               <button type="button" id="play" class="control">播放</button>
               <span id="elapsed" class="timecode">00:00</span>
               <input type="range" id="seek" min="0" max="14" step="0.01" value="0" aria-label="定位分镜预演时间">
-              <span class="timecode">00:14</span>
+              <span id="duration" class="timecode">00:14</span>
+            </div>
+            <div class="reel-notes">
+              <p id="frame-detail">远景 · 她撑着红伞走到候船楼外。</p>
+              <p id="media-status" role="status">基于静帧剪辑 · 无声预演</p>
+            </div>
+            <div class="reel" aria-label="分镜章节">
+              <button class="shot" data-shot="0" type="button" aria-pressed="true"><img src="assets/new/arrival.webp" width="832" height="468" loading="lazy" alt=""><span><strong>抵达渡口</strong><time datetime="PT0S">00:00</time></span></button>
+              <button class="shot" data-shot="1" type="button" aria-pressed="false"><img src="assets/new/umbrella.webp" width="832" height="468" loading="lazy" alt=""><span><strong>收起红伞</strong><time datetime="PT4S">00:04</time></span></button>
+              <button class="shot" data-shot="2" type="button" aria-pressed="false"><img src="assets/new/waiting.webp" width="832" height="468" loading="lazy" alt=""><span><strong>隔窗望江</strong><time datetime="PT7S">00:07</time></span></button>
+              <button class="shot" data-shot="3" type="button" aria-pressed="false"><img src="assets/new/gangway.webp" width="832" height="468" loading="lazy" alt=""><span><strong>登上渡轮</strong><time datetime="PT10S">00:10</time></span></button>
             </div>
           </div>
-        <section class="cut-lab" id="cut-editor" aria-labelledby="cut-title" data-take="a" hidden>
-          <div class="cut-heading">
-            <div>
-              <p class="eyebrow">剪辑台 · 第二镜</p>
-              <h3 id="cut-title">换个景别，接着看。</h3>
+          <section class="cut-lab" id="cut-editor" aria-labelledby="cut-title" data-take="a" hidden>
+            <div class="cut-heading">
+              <div>
+                <p class="eyebrow">剪辑台 · 第二镜</p>
+                <h3 id="cut-title">换个景别，接着看。</h3>
+              </div>
+              <p>中景看清她在哪儿收伞，近景看清她怎么收。选一版，再连看抵达、收伞和望江。</p>
             </div>
-            <p>中景看清她在哪儿收伞，近景看清她怎么收。选一版，再连看抵达、收伞和望江。</p>
-          </div>
-          <fieldset class="cut-options">
-            <legend>「收起红伞」的镜头版本</legend>
-            <label class="cut-option">
-              <input type="radio" name="umbrella-take" value="a" checked>
-              <img width="832" height="468" loading="lazy" src="assets/new/umbrella.webp" alt="">
-              <span class="cut-option-text"><b>A · 中景</b><small>人物与候船楼</small></span>
-            </label>
-            <label class="cut-option">
-              <input type="radio" name="umbrella-take" value="b">
-              <img width="832" height="468" loading="lazy" src="assets/new/umbrella-detail.webp" alt="">
-              <span class="cut-option-text"><b>B · 近景</b><small>同一画面裁出手与伞</small></span>
-            </label>
-          </fieldset>
-          <div class="cut-result">
-            <ol class="cut-route" aria-label="三镜衔接">
-              <li data-cut-phase="0"><span>前一镜</span><b>抵达渡口</b></li>
-              <li data-cut-phase="1" data-editable><span id="cut-take-label">A 版中景</span><b>收起红伞</b></li>
-              <li data-cut-phase="2"><span>后一镜</span><b>隔窗望江</b></li>
-            </ol>
-            <div class="cut-actions">
-              <button type="button" id="cut-play" class="cut-play">播放三镜衔接 <span aria-hidden="true">↗</span></button>
-              <p id="cut-status" class="cut-status" role="status">已选 A 版 · 前后两镜固定</p>
-              <button type="button" id="cut-retry" class="cut-retry" hidden>重试加载</button>
+            <fieldset class="cut-options">
+              <legend>「收起红伞」的镜头版本</legend>
+              <label class="cut-option">
+                <input type="radio" name="umbrella-take" value="a" checked>
+                <img width="832" height="468" loading="lazy" src="assets/new/umbrella.webp" alt="">
+                <span class="cut-option-text"><b>A · 中景</b><small>人物与候船楼</small></span>
+              </label>
+              <label class="cut-option">
+                <input type="radio" name="umbrella-take" value="b">
+                <img width="832" height="468" loading="lazy" src="assets/new/umbrella-detail.webp" alt="">
+                <span class="cut-option-text"><b>B · 近景</b><small>同一画面裁出手与伞</small></span>
+              </label>
+            </fieldset>
+            <details class="framing-demo">
+              <summary>拖动对比取景</summary>
+              <div class="framing-picture">
+                <img width="832" height="468" src="assets/new/umbrella.webp" loading="lazy" alt="">
+                <img width="832" height="468" src="assets/new/umbrella-detail.webp" loading="lazy" alt="">
+                <span class="framing-label framing-left" aria-hidden="true">A 中景</span>
+                <span class="framing-label framing-right" aria-hidden="true">B 近景</span>
+                <span class="framing-line" aria-hidden="true"><b>‹ ›</b></span>
+                <input type="range" min="0" max="100" value="50" step="1" aria-label="调整中景与近景的分界" aria-valuetext="中景占 50%，近景占 50%">
+              </div>
+            </details>
+            <div class="cut-result">
+              <ol class="cut-route" aria-label="三镜衔接">
+                <li data-cut-phase="0"><img width="832" height="468" src="assets/new/arrival.webp" loading="lazy" alt=""><span>前一镜</span><b>抵达渡口</b></li>
+                <li data-cut-phase="1" data-editable><img width="832" height="468" src="assets/new/umbrella.webp" loading="lazy" alt=""><span id="cut-take-label">A 版中景</span><b>收起红伞</b></li>
+                <li data-cut-phase="2"><img width="832" height="468" src="assets/new/waiting.webp" loading="lazy" alt=""><span>后一镜</span><b>隔窗望江</b></li>
+              </ol>
+              <div class="cut-actions">
+                <button type="button" id="cut-play" class="cut-play">播放三镜衔接 <span aria-hidden="true">↗</span></button>
+                <p id="cut-status" class="cut-status" role="status">已选 A 版 · 前后两镜固定</p>
+                <button type="button" id="cut-retry" class="cut-retry" hidden>重试加载</button>
+              </div>
             </div>
-          </div>
-        </section>
-        </div>
-        <div class="reel-notes">
-          <p id="frame-detail">远景 · 她撑着红伞走到候船楼外。</p>
-          <p id="media-status" role="status">基于静帧剪辑 · 无声预演</p>
-        </div>
-        <div class="reel" aria-label="分镜章节">
-          <button class="shot" data-shot="0" type="button" aria-pressed="true"><img src="assets/new/arrival.webp" width="832" height="468" loading="lazy" alt=""><span><strong>抵达渡口</strong><time datetime="PT0S">00:00</time></span></button>
-          <button class="shot" data-shot="1" type="button" aria-pressed="false"><img src="assets/new/umbrella.webp" width="832" height="468" loading="lazy" alt=""><span><strong>收起红伞</strong><time datetime="PT4S">00:04</time></span></button>
-          <button class="shot" data-shot="2" type="button" aria-pressed="false"><img src="assets/new/waiting.webp" width="832" height="468" loading="lazy" alt=""><span><strong>隔窗望江</strong><time datetime="PT7S">00:07</time></span></button>
-          <button class="shot" data-shot="3" type="button" aria-pressed="false"><img src="assets/new/gangway.webp" width="832" height="468" loading="lazy" alt=""><span><strong>登上渡轮</strong><time datetime="PT10S">00:10</time></span></button>
+          </section>
         </div>
       </div>
     </section>

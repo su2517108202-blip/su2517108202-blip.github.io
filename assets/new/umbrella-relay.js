@@ -2,95 +2,140 @@
   "use strict";
 
   const hero = document.querySelector(".hero");
-  const image = hero.querySelector(".hero-art img");
-  const card = document.querySelector(".relay-shot");
+  const art = hero.querySelector(".hero-art");
+  const image = art.querySelector("img");
+  const screening = document.querySelector("#screening");
+  const card = screening.querySelector(".relay-shot");
   const landing = card.querySelector(".relay-still");
   const layer = document.querySelector(".relay-flight");
   const object = layer.querySelector(".relay-object");
+  const landingImage = landing.querySelector("img");
+  const flightImage = object.querySelector("img");
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
   const crop = { x:1234, y:330, width:324, height:182 };
-  let scheduled = false;
+  const zoom = 1.105;
+  let frame = 0;
+  let geometry;
+  let needsMeasure = true;
+  let cameraX = 0;
+  let cameraY = 0;
+  let ready = false;
 
   const clamp = (value) => Math.max(0, Math.min(1, value));
   const ease = (value) => value * value * (3 - 2 * value);
   const mix = (start, end, amount) => start + (end - start) * amount;
 
-  function projectCrop() {
-    const box = image.getBoundingClientRect();
-    const layoutWidth = image.clientWidth;
-    const layoutHeight = image.clientHeight;
+  function measure(y) {
+    if (!image.naturalWidth) return;
+    const heroBox = hero.getBoundingClientRect();
+    const artBox = art.getBoundingClientRect();
+    const destination = landing.getBoundingClientRect();
+    const fit = Math.max(artBox.width / image.naturalWidth, artBox.height / image.naturalHeight);
     const [positionX, positionY] = getComputedStyle(image).objectPosition.split(/\s+/).map(parseFloat);
-    const fit = Math.max(layoutWidth / image.naturalWidth, layoutHeight / image.naturalHeight);
-    const scaleX = box.width / layoutWidth;
-    const scaleY = box.height / layoutHeight;
-    const gapX = (layoutWidth - image.naturalWidth * fit) * (positionX / 100);
-    const gapY = (layoutHeight - image.naturalHeight * fit) * (positionY / 100);
-
-    return {
-      left: box.left + (gapX + crop.x * fit) * scaleX,
-      top: box.top + (gapY + crop.y * fit) * scaleY,
-      width: crop.width * fit * scaleX,
-      height: crop.height * fit * scaleY,
+    const imageWidth = image.naturalWidth * fit;
+    const imageHeight = image.naturalHeight * fit;
+    const source = {
+      left: artBox.left + (1 - zoom) * artBox.width / 2 + zoom * ((artBox.width - imageWidth) * positionX / 100 + crop.x * fit),
+      top: artBox.top + y + (1 - zoom) * artBox.height / 2 + zoom * ((artBox.height - imageHeight) * positionY / 100 + crop.y * fit),
+      scale: fit * zoom,
     };
+    const start = heroBox.top + y + heroBox.height * .19;
+    const landingTop = destination.top + y;
+    const naturalEnd = Math.max(start + 160, landingTop + destination.height / 2 - innerHeight * .55);
+    const anchor = Math.floor(screening.getBoundingClientRect().top + y);
+    // The thumbnail must own the shot as soon as the native anchor reaches #screening.
+    const end = Math.min(anchor, naturalEnd);
+
+    geometry = {
+      source, start, end,
+      heroBottom:heroBox.bottom + y,
+      landing:{left:destination.left, top:landingTop, width:destination.width, height:destination.height},
+      compact:innerWidth < 661,
+      arc:Math.min(52, innerHeight * .07),
+    };
+    needsMeasure = false;
   }
 
   function hide(holdShade = false) {
-    layer.hidden = true;
-    if (holdShade) hero.style.setProperty("--relay-veil", ".94");
-    else hero.style.removeProperty("--relay-veil");
-    card.removeAttribute("data-catching");
+    if (!layer.hidden) {
+      layer.hidden = true;
+      card.removeAttribute("data-catching");
+    }
+    if (holdShade) art.style.setProperty("--relay-veil", ".94");
+    else art.style.removeProperty("--relay-veil");
   }
 
   function render() {
-    scheduled = false;
-    if (reduce.matches || document.body.dataset.sceneMotion === "still" || !image.naturalWidth) {
+    frame = 0;
+    if (reduce.matches || document.body.dataset.sceneMotion === "still") {
       hide();
       return;
     }
 
-    const destination = landing.getBoundingClientRect();
-    const heroBox = hero.getBoundingClientRect();
-    const start = heroBox.height * .19;
-    const traveled = -heroBox.top;
-    const end = Math.max(start + 160, traveled + destination.top + destination.height / 2 - innerHeight * .55);
-    const progress = clamp((traveled - start) / (end - start));
+    const y = scrollY;
+    if (needsMeasure) measure(y);
+    if (!geometry) return;
+
+    const {source, landing, start, end, heroBottom, compact, arc} = geometry;
+    const progress = clamp((y - start) / Math.max(1, end - start));
     if (progress <= 0 || progress >= 1) {
-      hide(progress >= 1 && heroBox.bottom > 0);
+      hide(progress >= 1 && y < heroBottom);
       return;
     }
 
-    const source = projectCrop();
-    const t = ease(clamp((progress - .1) / .9));
-    const film = ease(clamp((progress - .57) / .34));
-    const compact = innerWidth < 661;
-    const arc = Math.sin(Math.PI * t) * (compact ? -23 : Math.min(52, innerHeight * .07));
-    const shrink = 1 - Math.sin(Math.PI * t) * (compact ? .42 : .2);
-    const originalWidth = mix(source.width, destination.width, t);
-    const width = originalWidth * shrink;
-    const height = mix(source.height, destination.height, t) * shrink;
-    const x = mix(source.left, destination.left, t) + (originalWidth - width) * .71;
-    const y = mix(source.top, destination.top, t) - arc;
+    const t = ease(clamp((progress - .1) / .79));
+    const film = ready ? ease(clamp((progress - .89) / .08)) : 0;
+    const swing = Math.sin(Math.PI * t);
+    const shrink = 1 - swing * (compact ? .42 : .2);
+    const width = mix(crop.width * source.scale, landing.width, t);
+    const height = mix(crop.height * source.scale, landing.height, t);
+    const x = mix(source.left + cameraX * zoom, landing.left, t) + width * (1 - shrink) * .71;
+    const top = mix(source.top + cameraY * zoom, landing.top, t) - y - swing * (compact ? -48 : arc);
 
-    object.style.width = width.toFixed(2) + "px";
-    object.style.height = height.toFixed(2) + "px";
-    object.style.transform = "translate3d(" + x.toFixed(2) + "px," + y.toFixed(2) + "px,0)";
+    object.style.transform = `translate3d(${x.toFixed(2)}px,${top.toFixed(2)}px,0) scale(${(width * shrink / crop.width).toFixed(4)},${(height * shrink / crop.height).toFixed(4)})`;
     object.style.setProperty("--relay-umbrella", (1 - film).toFixed(3));
     object.style.setProperty("--relay-film", film.toFixed(3));
-    hero.style.setProperty("--relay-veil", (.94 * ease(clamp((progress - .015) / .21))).toFixed(3));
+    art.style.setProperty("--relay-veil", (.94 * ease(clamp((progress - .015) / .21))).toFixed(3));
     layer.hidden = false;
-    card.toggleAttribute("data-catching", progress > .27);
+    card.toggleAttribute("data-catching", ready && film >= .99 && t > .98);
   }
 
   function schedule() {
-    if (scheduled) return;
-    scheduled = true;
-    requestAnimationFrame(render);
+    if (!frame) frame = requestAnimationFrame(render);
+  }
+
+  function remeasure() {
+    needsMeasure = true;
+    schedule();
+  }
+
+  function watchStill() {
+    ready = false;
+    card.setAttribute("data-still-loading", "");
+    card.removeAttribute("data-catching");
+    const src = flightImage.src;
+    Promise.all([flightImage.decode(), landingImage.decode()]).then(() => {
+      if (flightImage.src !== src) return;
+      ready = true;
+      card.removeAttribute("data-still-loading");
+      schedule();
+    }).catch(schedule);
   }
 
   addEventListener("scroll", schedule, {passive:true});
-  addEventListener("resize", schedule);
-  image.addEventListener("load", schedule);
-  reduce.addEventListener("change", schedule);
+  addEventListener("resize", remeasure);
+  addEventListener("pageshow", remeasure);
+  image.addEventListener("load", remeasure);
+  hero.addEventListener("scene:camera", ({detail}) => {
+    cameraX = detail.x;
+    cameraY = detail.y;
+    schedule();
+  });
+  reduce.addEventListener("change", remeasure);
+  const resize = new ResizeObserver(remeasure);
+  [hero, landing, document.body].forEach((element) => resize.observe(element));
   new MutationObserver(schedule).observe(document.body, {attributes:true, attributeFilter:["data-scene-motion"]});
+  layer.addEventListener("relay:still", watchStill);
+  watchStill();
   schedule();
 })();

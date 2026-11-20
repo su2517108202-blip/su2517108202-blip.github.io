@@ -1,20 +1,41 @@
-.hero {
-  --camera-x: 0px;
-  --camera-y: 0px;
-  --rain-cut: 0%;
-}
-
 .hero-art img {
-  transform: scale(1.105) translate3d(var(--camera-x),var(--camera-y),0);
+  transform:scale(1.105) translate3d(var(--camera-x,0px),var(--camera-y,0px),0);
 }
 
 .weather-rain {
   position:absolute;
   inset:0;
-  width:100%;
-  height:100%;
+  overflow:hidden;
   pointer-events:none;
-  mix-blend-mode:screen;
+}
+.weather-rain::before,.weather-rain::after {
+  content:"";
+  position:absolute;
+  inset:calc(-1 * var(--rain-step) - 8px) -310px 0 -16px;
+  background-image:var(--rain-texture);
+  background-size:var(--rain-size) var(--rain-step);
+  transform-origin:left top;
+  animation:rain-sheet var(--rain-speed) linear infinite;
+  animation-play-state:paused;
+}
+.weather-rain::before {
+  --rain-texture:url("rain-far.png");
+  --rain-size:460px;
+  --rain-step:352px;
+  --rain-speed:1.08s;
+}
+.weather-rain::after {
+  --rain-texture:url("rain-near.png");
+  --rain-size:536px;
+  --rain-step:448px;
+  --rain-speed:.79s;
+}
+.weather-rain[data-rain-live]::before,.weather-rain[data-rain-live]::after {
+  animation-play-state:running;
+}
+@keyframes rain-sheet {
+  from{transform:skewX(-12deg) translate3d(0,0,0)}
+  to{transform:skewX(-12deg) translate3d(0,var(--rain-step),0)}
 }
 
 .viewfinder {
@@ -72,7 +93,9 @@
   height:180px;
   z-index:1;
   background:var(--red);
-  clip-path:polygon(0 100%,100% calc(100% - var(--rain-cut)),100% 100%);
+  clip-path:polygon(0 100%,100% 4%,100% 100%);
+  transform:scaleY(var(--rain-cut,0));
+  transform-origin:bottom;
   pointer-events:none;
 }
 .red-intro::before {display:none}
@@ -142,6 +165,7 @@
 }
 @media(prefers-reduced-motion:reduce){
   .weather-rain,.harbor-mist,#scene-motion-toggle,.hero::after,.projection::after,.projection::before{display:none!important}
+  .weather-rain::before,.weather-rain::after{animation-name:none;animation-play-state:paused!important}
   .hero-art img,.tail-mark > span{transform:none}
   .tail-mark > span{opacity:1}
   .viewfinder{opacity:.55;transform:none}

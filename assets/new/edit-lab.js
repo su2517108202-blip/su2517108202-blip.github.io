@@ -8,12 +8,11 @@
   const seek = document.querySelector("#seek");
   const play = document.querySelector("#play");
   const screenPlay = document.querySelector("#screen-play");
+  const still = document.querySelector("#switch-frame");
   const middle = document.querySelector('.shot[data-shot="1"] img');
-  if (!lab || !player || !source || !transport || !seek || !play || !screenPlay || !middle) return;
+  if (!lab || !player || !source || !transport || !seek || !play || !screenPlay || !still || !middle) return;
 
-  const currentScript = document.currentScript;
-  const assets = new URL(".", currentScript.src);
-  const poster = player.poster;
+  const assets = new URL(".", document.currentScript.src);
   const button = lab.querySelector("#cut-play");
   const retry = lab.querySelector("#cut-retry");
   const status = lab.querySelector("#cut-status");
@@ -23,18 +22,27 @@
   const chapters = [...document.querySelectorAll(".reel .shot")];
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
   const takes = {
-    a: { media: source.src, thumb: middle.src, label: "A 版中景", detail: "中景 · 她在绿椅旁收起湿透的红伞。" },
-    b: { media: new URL("tide-detail.mp4",assets).href, thumb: new URL("umbrella-detail.webp",assets).href, label: "B 版近景", detail: "近景 · 收伞的手和伞面。同一镜头裁切。" },
+    a: {
+      full: source.src,
+      three: new URL("tide-animatic-three.mp4", assets).href,
+      thumb: middle.src,
+      label: "A 版中景",
+      detail: "中景 · 她在绿椅旁收起湿透的红伞。",
+    },
+    b: {
+      full: new URL("tide-detail.mp4", assets).href,
+      three: new URL("tide-detail-three.mp4", assets).href,
+      thumb: new URL("umbrella-detail.webp", assets).href,
+      label: "B 版近景",
+      detail: "近景 · 收伞的手和伞面。同一镜头裁切。",
+    },
   };
   const inPoint = 2;
-  // Leave room for a late frame callback before shot 04 starts at 10 seconds.
-  const outPoint = 9.8;
   const targetMiddle = 4.1;
   let activeTake = "a";
+  let activeMode = "full";
   let inFlight;
-  let failedTake;
-  let comparing = false;
-  let stopFrame = 0;
+  let failed;
   let shownPhase = "";
 
   function selectedNotice() {
@@ -46,8 +54,9 @@
   }
 
   function paintPhase() {
+    if (inFlight) return;
     const time = player.currentTime;
-    const phase = !inFlight && time < 10 ? (time < 4 ? "0" : time < 7 ? "1" : "2") : "";
+    const phase = activeMode === "full" && time >= 10 ? "" : (time < 4 ? "0" : time < 7 ? "1" : "2");
     if (phase === shownPhase) return;
     shownPhase = phase;
     for (const item of route) {
@@ -56,6 +65,12 @@
       if (current) item.setAttribute("aria-current","step");
       else item.removeAttribute("aria-current");
     }
+  }
+
+  function holdFrame() {
+    if (!still.hidden || player.readyState < 2 || player.seeking) return;
+    still.getContext("2d").drawImage(player,0,0,still.width,still.height);
+    still.hidden = false;
   }
 
   function updateBusy() {
@@ -70,61 +85,9 @@
     paintPhase();
   }
 
-  function updateTake(key) {
-    activeTake = key;
-    const take = takes[key];
-    markChoice(key);
-    middle.src = take.thumb;
-    lab.dataset.take = key;
-    takeLabel.textContent = take.label;
-    player.dispatchEvent(new CustomEvent("continuity:take", {detail: {key, detail: take.detail}}));
-  }
-
-  function clearPlayback() {
-    if (comparing && !inFlight) status.textContent = selectedNotice();
-    if (stopFrame) cancelAnimationFrame(stopFrame);
-    stopFrame = 0;
-    comparing = false;
-    lab.removeAttribute("data-playing");
-  }
-
-  function checkOutPoint() {
-    if (!comparing || inFlight) return;
-    if (player.currentTime < outPoint) return;
-    clearPlayback();
-    player.pause();
-    player.currentTime = outPoint;
-    status.textContent = takes[activeTake].label + " · 三镜衔接播放完毕";
-  }
-
-  function watchPlayback() {
-    stopFrame = 0;
-    checkOutPoint();
-    if (comparing && !player.paused) stopFrame = requestAnimationFrame(watchPlayback);
-  }
-
-  function playCompare({bringIntoView = true} = {}) {
-    if (inFlight) {
-      inFlight.action = "compare";
-      status.textContent = "镜头加载后将播放三镜衔接。";
-      return;
-    }
-    if (player.error || player.readyState === 0) {
-      selectTake(activeTake, {action:"compare", position:inPoint});
-      return;
-    }
-    comparing = true;
-    lab.setAttribute("data-playing","");
-    player.currentTime = inPoint;
-    status.textContent = "正在播放三镜衔接 · " + takes[activeTake].label;
-    if (bringIntoView) {
-      player.scrollIntoView({block:"center",behavior:reduce.matches?"instant":"smooth"});
-      play.focus({preventScroll:true});
-    }
+  function startPlayback() {
     player.play().catch(() => {
-      if (!comparing) return;
-      clearPlayback();
-      status.textContent = "可以用播放按钮继续。";
+      if (player.paused && !inFlight) status.textContent = "可以用播放按钮继续。";
     });
   }
 
@@ -134,115 +97,159 @@
     inFlight = undefined;
   }
 
-  function failTake(request) {
+  function fail(request) {
     if (request !== inFlight) return;
     settle(request);
-    failedTake = request.recover ? failedTake : request.key;
+    if (!request.recover) failed = request;
     retry.hidden = false;
     markChoice(activeTake);
-    if (request.recover || request.key === activeTake) {
+    if (request.recover || request.src === takes[activeTake][activeMode]) {
+      still.hidden = true;
       status.textContent = "镜头载入失败，可以重试。";
       updateBusy();
       return;
     }
     status.textContent = takes[request.key].label + "载入失败，正恢复" + takes[activeTake].label + "。";
-    selectTake(activeTake, { position: request.previousTime, action: null, recover: true });
+    select(activeTake, { mode:activeMode, position:request.previousTime, recover:true });
   }
 
-  function selectTake(key, { position = targetMiddle, action = null, recover = false } = {}) {
+  function select(key, { mode = "full", position = targetMiddle, shouldPlay = false, recover = false, focus = false } = {}) {
     const take = takes[key];
     if (!take) return;
-    if (!inFlight && !player.error && player.readyState > 0 && player.currentSrc === take.media && key === activeTake) {
-      markChoice(key);
-      if (action === "compare") playCompare();
+    const src = take[mode];
+    if (inFlight?.src === src) {
+      inFlight.shouldPlay ||= shouldPlay;
+      inFlight.focus ||= focus;
+      if (inFlight.position !== position) {
+        inFlight.position = position;
+        if (inFlight.seekRequested) player.currentTime = Math.min(position,player.duration);
+      }
       return;
     }
+    if (!inFlight && !player.error && player.readyState > 0 && player.currentSrc === src) {
+      markChoice(key);
+      if (player.currentTime !== position) player.currentTime = position;
+      if (shouldPlay) startPlayback();
+      if (focus) play.focus({preventScroll:true});
+      return;
+    }
+
     const previousTime = inFlight?.previousTime ?? player.currentTime;
     if (inFlight) settle(inFlight);
-    clearPlayback();
+    holdFrame();
     player.pause();
-    const request = { key, previousTime, action, recover, events: new AbortController() };
+    const request = { key, mode, src, position, previousTime, shouldPlay, recover, focus, events:new AbortController() };
     inFlight = request;
     markChoice(key);
+    lab.removeAttribute("data-playing");
     if (!recover) {
-      failedTake = undefined;
+      failed = undefined;
       retry.hidden = true;
       status.textContent = "正在载入" + take.label + "…";
     }
     updateBusy();
 
-    const belongsToRequest = () => request === inFlight && player.currentSrc === take.media;
+    const belongs = () => request === inFlight && player.currentSrc === src;
     const eventOptions = {signal:request.events.signal};
-    function commit() {
-      if (!belongsToRequest() || player.seeking || player.readyState < 2) return;
+    let commitFrame = 0;
+    const commit = () => {
+      if (!belongs() || player.seeking || player.readyState < 2) return;
       settle(request);
-      player.poster = poster;
-      updateTake(key);
+      activeTake = key;
+      activeMode = mode;
+      player.toggleAttribute("data-three-cut", mode === "three");
+      middle.src = take.thumb;
+      lab.dataset.take = key;
+      takeLabel.textContent = take.label;
       updateBusy();
-      status.textContent = recover ? "已恢复" + take.label + "，可以重试另一版。" : selectedNotice();
-
-      if (request.action === "compare") playCompare();
-      if (request.action === "full") {
-        player.currentTime = 0;
-        player.play().catch(() => { status.textContent = "可以用播放按钮重播。"; });
-      }
-      if (request.action === "continue") {
-        player.play().catch(() => { status.textContent = "可以用播放按钮继续。"; });
-      }
-    }
-    let seekRequested = false;
+      player.dispatchEvent(new CustomEvent("continuity:take", {detail:{key, detail:take.detail}}));
+      still.hidden = true;
+      status.textContent = recover ? "已恢复" + take.label + "，可以重试。" : selectedNotice();
+      if (request.shouldPlay) startPlayback();
+      if (request.focus) play.focus({preventScroll:true});
+    };
     player.addEventListener("loadedmetadata", () => {
-      if (!belongsToRequest()) return;
-      seekRequested = true;
-      player.currentTime = Math.min(position,player.duration);
+      if (!belongs()) return;
+      request.seekRequested = true;
+      player.currentTime = Math.min(request.position,player.duration);
     },eventOptions);
     for (const event of ["loadeddata","seeked","canplay"]) {
-      player.addEventListener(event, () => { if (seekRequested) commit(); },eventOptions);
+      player.addEventListener(event, () => {
+        if (!request.seekRequested || !belongs() || player.seeking || player.readyState < 2 || commitFrame) return;
+        if (document.hidden) {
+          commit();
+          return;
+        }
+        commitFrame = requestAnimationFrame(() => {
+          commitFrame = 0;
+          commit();
+        });
+      },eventOptions);
     }
     player.addEventListener("error", () => {
-      if (belongsToRequest()) failTake(request);
+      if (request === inFlight && player.error) fail(request);
     },eventOptions);
-    request.timeout = setTimeout(() => failTake(request), 14000);
+    request.timeout = setTimeout(() => fail(request), 14000);
 
-    player.poster = take.thumb;
     player.preload = "auto";
-    player.src = take.media;
+    player.src = src;
     player.load();
+  }
+
+  function playCompare() {
+    player.scrollIntoView({block:"center",behavior:reduce.matches?"instant":"smooth"});
+    select(inFlight?.key ?? activeTake, {mode:"three", position:inPoint, shouldPlay:true, focus:true});
   }
 
   player.addEventListener("continuity:play-request", (event) => {
     if (inFlight) {
       event.preventDefault();
-      inFlight.action = event.detail.reset ? "full" : "continue";
+      if (event.detail.reset) {
+        select(inFlight.key, {position:0, shouldPlay:true});
+      } else {
+        inFlight.shouldPlay = true;
+      }
       return;
     }
-    if (event.detail.reset) clearPlayback();
+    if (activeMode === "three" && event.detail.reset) {
+      event.preventDefault();
+      select(activeTake, {position:0, shouldPlay:true});
+    } else if (activeMode === "three" && player.ended) {
+      event.preventDefault();
+      playCompare();
+    }
   });
-  player.addEventListener("continuity:compare", () => playCompare());
+  player.addEventListener("continuity:seek-request", (event) => {
+    if (inFlight) {
+      event.preventDefault();
+    } else if (activeMode === "three" && event.detail.chapter && event.detail.time >= 10) {
+      event.preventDefault();
+      select(activeTake, {position:event.detail.time, shouldPlay:!player.paused});
+    }
+  });
   player.addEventListener("play", () => {
-    if (!comparing) return;
+    if (activeMode !== "three" || inFlight) return;
+    lab.setAttribute("data-playing","");
     status.textContent = "正在播放三镜衔接 · " + takes[activeTake].label;
-    if (!stopFrame) stopFrame = requestAnimationFrame(watchPlayback);
   });
   player.addEventListener("pause", () => {
-    if (stopFrame) cancelAnimationFrame(stopFrame);
-    stopFrame = 0;
-    if (comparing) status.textContent = "三镜衔接已暂停 · " + takes[activeTake].label;
+    if (activeMode !== "three" || inFlight || player.ended) return;
+    lab.removeAttribute("data-playing");
+    status.textContent = "三镜衔接已暂停 · " + takes[activeTake].label;
   });
-  player.addEventListener("timeupdate", () => { paintPhase(); checkOutPoint(); });
-  player.addEventListener("seeked",paintPhase);
-  player.addEventListener("ended",clearPlayback);
-  seek.addEventListener("input",clearPlayback);
-  seek.addEventListener("keydown",(event) => {
-    if (["ArrowRight","ArrowLeft","ArrowUp","ArrowDown","Home","End","PageUp","PageDown"].includes(event.key)) clearPlayback();
+  player.addEventListener("ended", () => {
+    if (activeMode !== "three" || inFlight) return;
+    lab.removeAttribute("data-playing");
+    paintPhase();
+    status.textContent = takes[activeTake].label + " · 三镜衔接播放完毕";
   });
-  chapters.forEach((chapter) => chapter.addEventListener("click",clearPlayback));
+  for (const event of ["timeupdate","seeked"]) player.addEventListener(event,paintPhase);
   choices.forEach((choice) => choice.addEventListener("change", () => {
-    if (choice.checked) selectTake(choice.value);
+    if (choice.checked) select(choice.value);
   }));
-  button.addEventListener("click", () => playCompare());
+  button.addEventListener("click",playCompare);
   retry.addEventListener("click", () => {
-    if (failedTake) selectTake(failedTake);
+    if (failed) select(failed.key, failed);
   });
   lab.hidden = false;
   paintPhase();

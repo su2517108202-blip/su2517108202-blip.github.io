@@ -13,18 +13,25 @@ const play = document.querySelector("#play");
 const screenPlay = document.querySelector("#screen-play");
 const seek = document.querySelector("#seek");
 const elapsed = document.querySelector("#elapsed");
+const duration = document.querySelector("#duration");
 const status = document.querySelector("#media-status");
 const frameDetail = document.querySelector("#frame-detail");
 const shotButtons = [...document.querySelectorAll(".shot")];
 let currentShot = -1;
 let pendingSeek;
 
+function timecode(time) {
+  return "00:" + String(Math.floor(time)).padStart(2, "0");
+}
+
 function syncPlayer() {
+  if (player.hasAttribute("data-cut-loading")) return;
   const time = pendingSeek ?? player.currentTime;
   seek.value = time;
-  elapsed.textContent = "00:" + String(Math.floor(time)).padStart(2, "0");
+  elapsed.textContent = timecode(time);
   seek.setAttribute("aria-valuetext", elapsed.textContent);
-  const index = reel.findLastIndex((shot) => time >= shot.time);
+  const lastShot = player.hasAttribute("data-three-cut") ? 2 : reel.length - 1;
+  const index = reel.findLastIndex((shot, position) => position <= lastShot && time >= shot.time);
   if (index === currentShot) return;
   currentShot = index;
   frameDetail.textContent = reel[index].detail;
@@ -33,7 +40,7 @@ function syncPlayer() {
 
 function syncPlay() {
   play.textContent = player.paused ? "播放" : "暂停";
-  screenPlay.hidden = !player.paused || player.currentTime > 0 && !player.ended;
+  screenPlay.hidden = player.hasAttribute("data-cut-loading") || !player.paused || player.currentTime > 0 && !player.ended;
 }
 
 function beginPlayback({reset = false} = {}) {
@@ -48,7 +55,9 @@ function beginPlayback({reset = false} = {}) {
   });
 }
 
-function jumpTo(time) {
+function jumpTo(time, chapter = false) {
+  const request = new CustomEvent("continuity:seek-request", {cancelable:true, detail:{time, chapter}});
+  if (!player.dispatchEvent(request)) return;
   if (player.readyState === 0) {
     pendingSeek = time;
     player.preload = "auto";
@@ -59,18 +68,27 @@ function jumpTo(time) {
   syncPlayer();
 }
 
+function syncDuration() {
+  if (player.hasAttribute("data-cut-loading") || !Number.isFinite(player.duration)) return;
+  seek.max = player.duration;
+  duration.textContent = timecode(player.duration);
+}
+
 player.addEventListener("continuity:take", (event) => {
   reel[1].detail = event.detail.detail;
+  pendingSeek = undefined;
+  syncDuration();
   currentShot = -1;
   syncPlayer();
 });
 player.addEventListener("loadedmetadata", () => {
-  seek.max = player.duration;
-  if (pendingSeek !== undefined) jumpTo(pendingSeek);
+  syncDuration();
+  if (pendingSeek !== undefined && !player.hasAttribute("data-cut-loading")) jumpTo(pendingSeek);
 });
 for (const event of ["timeupdate", "seeked", "ended"]) player.addEventListener(event, syncPlayer);
 for (const event of ["play", "pause", "ended"]) player.addEventListener(event, syncPlay);
 player.addEventListener("error", () => {
+  if (player.hasAttribute("data-cut-loading")) return;
   status.textContent = "当前无法播放预演。四张分镜静帧仍可在下方查看。";
   screenPlay.hidden = true;
   play.disabled = true;
@@ -90,7 +108,7 @@ seek.addEventListener("keydown", (event) => {
   const time = Number(seek.value) + increments[event.key];
   jumpTo(Math.min(Number(seek.max), Math.max(0, time)));
 });
-shotButtons.forEach((button, index) => button.addEventListener("click", () => jumpTo(reel[index].time)));
+shotButtons.forEach((button, index) => button.addEventListener("click", () => jumpTo(reel[index].time,true)));
 player.addEventListener("click", () => player.paused ? beginPlayback() : player.pause());
 player.controls = false;
 document.querySelector("#transport").hidden = false;
